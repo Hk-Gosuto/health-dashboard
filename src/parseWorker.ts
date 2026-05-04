@@ -245,7 +245,7 @@ async function parseFile(file: File) {
         if (!audioAcc.has(day)) audioAcc.set(day, { hpVals: [], hpMins: 0, envVals: [], envMins: 0, events: 0 })
         const a = audioAcc.get(day)!
         const endDate = extractAttr(attrs, 'endDate') || startDate
-        const mins = (new Date(endDate).getTime() - new Date(startDate).getTime()) / 60000
+        const mins = (parseAppleDate(endDate) - parseAppleDate(startDate)) / 60000
         if (type === 'HKQuantityTypeIdentifierHeadphoneAudioExposure') {
           a.hpVals.push(value)
           if (mins > 0 && mins < 1440) a.hpMins += mins
@@ -322,8 +322,8 @@ async function parseFile(file: File) {
         const stage = STAGE_MAP[val]
         if (stage) {
           const endDate = extractAttr(attrs, 'endDate') || startDate
-          const start = new Date(startDate)
-          const end = new Date(endDate)
+          const start = new Date(parseAppleDate(startDate))
+          const end = new Date(parseAppleDate(endDate))
           const mins = (end.getTime() - start.getTime()) / 60000
           if (mins > 0 && mins < 1440) {
             // Assign to the date of the end time (the day you wake up)
@@ -394,7 +394,7 @@ async function parseFile(file: File) {
           } else {
             dailyHRAcc.set(day, { min: value, max: value, sum: value, count: 1 })
           }
-          hrTimeline.push({ t: new Date(startDate).getTime(), v: Math.round(value) })
+          hrTimeline.push({ t: parseAppleDate(startDate), v: Math.round(value) })
           break
         }
         case 'HKQuantityTypeIdentifierAppleSleepingWristTemperature':
@@ -697,4 +697,18 @@ function extractAttr(str: string, name: string): string {
   const regex = new RegExp(`${name}="([^"]*)"`)
   const match = str.match(regex)
   return match ? match[1] : ''
+}
+
+// Apple Health writes dates as "YYYY-MM-DD HH:mm:ss ±ZZZZ" — V8 parses it but
+// Safari rejects the space and produces NaN. Parse manually for portability.
+const APPLE_DATE_RE = /^(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2}):(\d{2}) ([+-])(\d{2})(\d{2})$/
+function parseAppleDate(s: string): number {
+  const m = APPLE_DATE_RE.exec(s)
+  if (!m) {
+    // Fallback for any format the engine handles natively (returns NaN if not).
+    return new Date(s).getTime()
+  }
+  const utc = Date.UTC(+m[1], +m[2] - 1, +m[3], +m[4], +m[5], +m[6])
+  const offsetMs = (m[7] === '-' ? -1 : 1) * (+m[8] * 60 + +m[9]) * 60_000
+  return utc - offsetMs
 }
