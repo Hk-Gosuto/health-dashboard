@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useEffect } from 'react'
 import type { HealthData, DailyMetrics } from './types'
 import { TabHeader } from './ui'
 import {
@@ -334,25 +334,42 @@ interface Props {
   metrics: DailyMetrics[]
 }
 
+const PAGE_SIZE = 20
+
 export default function AnomalyDetection({ data, metrics }: Props) {
   const anomalies = useMemo(() => detectAnomalies(metrics, data), [metrics, data])
   const [metricFilter, setMetricFilter] = useState<string | null>(null)
+  const [page, setPage] = useState(0)
 
-  const filtered = metricFilter ? anomalies.filter(a => a.metric === metricFilter) : anomalies
+  const filtered = useMemo(
+    () => metricFilter ? anomalies.filter(a => a.metric === metricFilter) : anomalies,
+    [anomalies, metricFilter],
+  )
   const alerts = filtered.filter(a => a.severity === 'alert')
   const warnings = filtered.filter(a => a.severity === 'warning')
 
-  // Group by month for timeline view
+  // Newest-first flat list, then paginate, then re-group by month for rendering.
+  const sorted = useMemo(
+    () => [...filtered].sort((a, b) => b.date.localeCompare(a.date)),
+    [filtered],
+  )
+  const totalPages = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE))
+  const safePage = Math.min(page, totalPages - 1)
+  const pageSlice = sorted.slice(safePage * PAGE_SIZE, safePage * PAGE_SIZE + PAGE_SIZE)
+
   const byMonth = useMemo(() => {
     const map = new Map<string, Anomaly[]>()
-    for (const a of filtered) {
+    for (const a of pageSlice) {
       const month = a.date.substring(0, 7)
       const arr = map.get(month) || []
       arr.push(a)
       map.set(month, arr)
     }
     return Array.from(map.entries()).sort(([a], [b]) => b.localeCompare(a))
-  }, [filtered])
+  }, [pageSlice])
+
+  // Reset to first page when filter changes
+  useEffect(() => { setPage(0) }, [metricFilter])
 
   // Most affected metrics (always from full set for the chips)
   const metricCounts = useMemo(() => {
@@ -461,6 +478,33 @@ export default function AnomalyDetection({ data, metrics }: Props) {
           </div>
         </div>
       ))}
+
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between gap-3 pt-2 border-t border-zinc-800/60">
+          <div className="text-xs text-zinc-500 tabular-nums">
+            Showing {safePage * PAGE_SIZE + 1}–{Math.min((safePage + 1) * PAGE_SIZE, sorted.length)} of {sorted.length}
+          </div>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => setPage(p => Math.max(0, p - 1))}
+              disabled={safePage === 0}
+              className="px-3 py-1.5 rounded-md text-xs bg-zinc-900 border border-zinc-800 text-zinc-300 hover:bg-zinc-800 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+            >
+              Previous
+            </button>
+            <span className="px-2 text-xs text-zinc-500 tabular-nums">
+              Page {safePage + 1} / {totalPages}
+            </span>
+            <button
+              onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))}
+              disabled={safePage >= totalPages - 1}
+              className="px-3 py-1.5 rounded-md text-xs bg-zinc-900 border border-zinc-800 text-zinc-300 hover:bg-zinc-800 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+            >
+              Next
+            </button>
+          </div>
+        </div>
+      )}
 
       <p className="text-xs text-zinc-600 text-center">
         Anomalies detected using rolling 30-day baselines. Warnings at 2+ standard deviations, alerts at 3+.

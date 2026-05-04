@@ -5,9 +5,9 @@ import {
 } from 'recharts'
 import type { HealthData, DailyMetrics } from './types'
 import {
-  LayoutDashboard, Trophy, CalendarDays, CalendarRange, Heart, Activity,
+  LayoutDashboard, CalendarDays, CalendarRange, Heart, Activity,
   Scale, Moon, Sun, Headphones, GitCompareArrows, Dumbbell, Route, Map, Upload,
-  Gauge, AlertTriangle, Sparkles, Droplets, PanelLeftClose, PanelLeftOpen,
+  Gauge, Droplets, PanelLeftClose, PanelLeftOpen,
   SunMedium, MoonStar, Footprints, Zap, TrendingUp,
 } from 'lucide-react'
 import { computeTrends, computeExtraTrends, groupedAverage, workoutSummary, monthlyWorkouts } from './analysis'
@@ -23,7 +23,6 @@ const Cardio = lazy(() => import('./Cardio'))
 const AudioExposure = lazy(() => import('./AudioExposure'))
 const Daylight = lazy(() => import('./Daylight'))
 const RouteComparison = lazy(() => import('./RouteComparison'))
-const PersonalRecords = lazy(() => import('./PersonalRecords'))
 const YearInReview = lazy(() => import('./YearInReview'))
 const CalendarHeatmap = lazy(() => import('./CalendarHeatmap'))
 const HealthScoreView = lazy(() => import('./HealthScoreView'))
@@ -37,19 +36,19 @@ const TrainingLoad = lazy(() => import('./TrainingLoad'))
 
 type TimeRange = '1w' | '3m' | '6m' | '1y' | 'all'
 type Granularity = 'daily' | 'weekly' | 'monthly'
-type Tab = 'overview' | 'score' | 'anomalies' | 'insights' | 'records' | 'yearly' | 'calendar' | 'cardio' | 'body' | 'sleep' | 'menstrual' | 'daylight' | 'audio' | 'correlations' | 'trainings' | 'compare' | 'heatmap' | 'garmin-training' | 'mobility' | 'running' | 'load'
+type Tab = 'overview' | 'score' | 'yearly' | 'calendar' | 'cardio' | 'body' | 'sleep' | 'menstrual' | 'daylight' | 'audio' | 'correlations' | 'trainings' | 'compare' | 'heatmap' | 'garmin-training' | 'mobility' | 'running' | 'load'
 
 const Loading = <TabSkeleton />
 
 const GROUP_LABELS: Record<number, string> = {
   1: 'Dashboard',
-  2: 'History',
-  3: 'Health',
-  4: 'Analysis',
-  5: 'Routes',
+  2: 'Health',
+  3: 'Fitness',
+  4: 'Activities',
+  5: 'Trends & Analysis',
 }
 
-const VALID_TABS = new Set<Tab>(['overview', 'score', 'anomalies', 'insights', 'records', 'yearly', 'calendar', 'cardio', 'body', 'sleep', 'menstrual', 'daylight', 'audio', 'correlations', 'trainings', 'compare', 'heatmap', 'garmin-training', 'mobility', 'running', 'load'])
+const VALID_TABS = new Set<Tab>(['overview', 'score', 'yearly', 'calendar', 'cardio', 'body', 'sleep', 'menstrual', 'daylight', 'audio', 'correlations', 'trainings', 'compare', 'heatmap', 'garmin-training', 'mobility', 'running', 'load'])
 const VALID_RANGES = new Set<TimeRange>(['1w', '3m', '6m', '1y', 'all'])
 const VALID_GRANULARITIES = new Set<Granularity>(['daily', 'weekly', 'monthly'])
 
@@ -126,7 +125,6 @@ export default function Dashboard({ data, onReset }: { data: HealthData; onReset
         cardio: () => import('./Cardio'),
         sleep: () => import('./SleepAnalysis'),
         body: () => import('./BodyComposition'),
-        records: () => import('./PersonalRecords'),
         calendar: () => import('./CalendarHeatmap'),
         trainings: () => import('./TrainingViewer'),
       }
@@ -137,7 +135,6 @@ export default function Dashboard({ data, onReset }: { data: HealthData; onReset
         cardio: ['body', 'sleep'],
         body: ['cardio', 'sleep'],
         sleep: ['cardio', 'body'],
-        records: ['calendar', 'cardio'],
       }
       const targets = neighbors[tab] ?? ['score', 'cardio']
       for (const key of targets) loaders[key]?.()
@@ -293,27 +290,29 @@ export default function Dashboard({ data, onReset }: { data: HealthData; onReset
   const [sidebarOpen, setSidebarOpen] = useState(true)
 
   const tabs: { key: Tab; label: string; icon: ReactNode; show: boolean; group: number }[] = [
+    // 1 — Dashboard: current state
     { key: 'overview', label: 'Overview', icon: <LayoutDashboard size={16} />, show: true, group: 1 },
     { key: 'score', label: 'Score', icon: <Gauge size={16} />, show: true, group: 1 },
-    { key: 'anomalies', label: 'Anomalies', icon: <AlertTriangle size={16} />, show: true, group: 1 },
-    { key: 'insights', label: 'AI Insights', icon: <Sparkles size={16} />, show: true, group: 1 },
-    { key: 'records', label: 'Records', icon: <Trophy size={16} />, show: true, group: 2 },
-    { key: 'yearly', label: 'Yearly', icon: <CalendarDays size={16} />, show: true, group: 2 },
-    { key: 'calendar', label: 'Calendar', icon: <CalendarRange size={16} />, show: true, group: 2 },
-    { key: 'cardio', label: 'Cardio', icon: <Heart size={16} />, show: hasCardio, group: 3 },
-    { key: 'body', label: 'Body', icon: <Scale size={16} />, show: hasBody, group: 3 },
-    { key: 'sleep', label: 'Sleep', icon: <Moon size={16} />, show: hasSleep, group: 3 },
-    { key: 'menstrual', label: 'Cycle', icon: <Droplets size={16} />, show: hasMenstrual || data.profile.sex === 'HKBiologicalSexFemale', group: 3 },
-    { key: 'daylight', label: 'Daylight', icon: <Sun size={16} />, show: hasDaylight, group: 3 },
-    { key: 'audio', label: 'Audio', icon: <Headphones size={16} />, show: hasAudio, group: 3 },
+    // 2 — Health: physiological metrics
+    { key: 'cardio', label: 'Cardio', icon: <Heart size={16} />, show: hasCardio, group: 2 },
+    { key: 'body', label: 'Body', icon: <Scale size={16} />, show: hasBody, group: 2 },
+    { key: 'sleep', label: 'Sleep', icon: <Moon size={16} />, show: hasSleep, group: 2 },
+    { key: 'menstrual', label: 'Cycle', icon: <Droplets size={16} />, show: hasMenstrual || data.profile.sex === 'HKBiologicalSexFemale', group: 2 },
+    { key: 'daylight', label: 'Daylight', icon: <Sun size={16} />, show: hasDaylight, group: 2 },
+    { key: 'audio', label: 'Audio', icon: <Headphones size={16} />, show: hasAudio, group: 2 },
+    // 3 — Fitness: performance & training state
     { key: 'mobility', label: 'Mobility', icon: <Footprints size={16} />, show: hasMobility, group: 3 },
     { key: 'running', label: 'Running', icon: <Zap size={16} />, show: hasRunning, group: 3 },
-    { key: 'load', label: 'Training Load', icon: <TrendingUp size={16} />, show: data.workouts.length >= 7, group: 4 },
-    { key: 'correlations', label: 'Correlations', icon: <GitCompareArrows size={16} />, show: true, group: 4 },
-    { key: 'trainings', label: 'Trainings', icon: <Dumbbell size={16} />, show: hasGpx, group: 5 },
-    { key: 'compare', label: 'Compare', icon: <Route size={16} />, show: hasGpx, group: 5 },
-    { key: 'heatmap', label: 'Heatmap', icon: <Map size={16} />, show: hasGpx, group: 5 },
     { key: 'garmin-training', label: 'Training', icon: <Activity size={16} />, show: hasGarmin, group: 3 },
+    { key: 'load', label: 'Training Load', icon: <TrendingUp size={16} />, show: data.workouts.length >= 7, group: 3 },
+    // 4 — Activities: events & sessions
+    { key: 'calendar', label: 'Calendar', icon: <CalendarRange size={16} />, show: true, group: 4 },
+    { key: 'trainings', label: 'Trainings', icon: <Dumbbell size={16} />, show: hasGpx, group: 4 },
+    { key: 'compare', label: 'Compare', icon: <Route size={16} />, show: hasGpx, group: 4 },
+    { key: 'heatmap', label: 'Heatmap', icon: <Map size={16} />, show: hasGpx, group: 4 },
+    // 5 — Trends & Analysis: deeper insight
+    { key: 'correlations', label: 'Correlations', icon: <GitCompareArrows size={16} />, show: true, group: 5 },
+    { key: 'yearly', label: 'Yearly', icon: <CalendarDays size={16} />, show: true, group: 5 },
   ]
   const visibleTabs = tabs.filter(t => t.show)
 
@@ -473,24 +472,6 @@ export default function Dashboard({ data, onReset }: { data: HealthData; onReset
         {tab === 'score' && (
           <Suspense fallback={Loading}>
             <HealthScoreView data={data} cutoffDate={cutoffDate} />
-          </Suspense>
-        )}
-
-        {tab === 'anomalies' && (
-          <Suspense fallback={Loading}>
-            <AnomalyDetection data={data} metrics={allMetrics} />
-          </Suspense>
-        )}
-
-        {tab === 'insights' && (
-          <Suspense fallback={Loading}>
-            <AIInsights data={data} metrics={allMetrics} />
-          </Suspense>
-        )}
-
-        {tab === 'records' && (
-          <Suspense fallback={Loading}>
-            <PersonalRecords metrics={allMetrics} workouts={data.workouts} gpxFiles={data.gpxFiles} />
           </Suspense>
         )}
 
@@ -806,6 +787,13 @@ export default function Dashboard({ data, onReset }: { data: HealthData; onReset
           </>
         )}
 
+        {/* Anomalies + AI Insights inlined into Overview */}
+        <Suspense fallback={Loading}>
+          <AnomalyDetection data={data} metrics={allMetrics} />
+        </Suspense>
+        <Suspense fallback={Loading}>
+          <AIInsights data={data} metrics={allMetrics} />
+        </Suspense>
         </>}
 
         <footer className="text-center text-zinc-600 text-xs py-8">
