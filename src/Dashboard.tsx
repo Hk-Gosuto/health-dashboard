@@ -8,7 +8,7 @@ import {
   LayoutDashboard, CalendarDays, CalendarRange, Heart, Activity,
   Scale, Moon, Sun, Headphones, GitCompareArrows, Dumbbell, Route, Map, Upload,
   Gauge, Droplets, PanelLeftClose, PanelLeftOpen,
-  SunMedium, MoonStar, Footprints, Zap, TrendingUp,
+  SunMedium, MoonStar, Footprints, Zap, TrendingUp, Wind, MapPin, Waves,
 } from 'lucide-react'
 import { groupedAverage, workoutSummary, monthlyWorkouts } from './analysis'
 import { COLORS, chartMargin, StatBox, ChartCard, SectionHeader, TabHeader, ChartTooltip, shortDateCompact, shortMonth, fmt, humanizeWorkoutType, useChartTheme, TabSkeleton, EmptyState } from './ui'
@@ -216,7 +216,7 @@ export default function Dashboard({ data, onReset }: { data: HealthData; onReset
     { key: 'load', label: 'Training Load', icon: <TrendingUp size={16} />, show: data.workouts.length >= 7, group: 3 },
     // 4 — Activities: events & sessions
     { key: 'calendar', label: 'Calendar', icon: <CalendarRange size={16} />, show: true, group: 4 },
-    { key: 'trainings', label: 'Trainings', icon: <Dumbbell size={16} />, show: hasGpx, group: 4 },
+    { key: 'trainings', label: 'Trainings', icon: <Dumbbell size={16} />, show: data.workouts.length > 0, group: 4 },
     { key: 'compare', label: 'Compare', icon: <Route size={16} />, show: hasGpx, group: 4 },
     { key: 'heatmap', label: 'Heatmap', icon: <Map size={16} />, show: hasGpx, group: 4 },
     // 5 — Trends & Analysis: deeper insight
@@ -471,12 +471,41 @@ export default function Dashboard({ data, onReset }: { data: HealthData; onReset
           </Suspense>
         )}
 
-        {tab === 'trainings' && (hasGpx ? (
-          <Suspense fallback={Loading}>
-            <TrainingViewer workouts={data.workouts} gpxFiles={data.gpxFiles} hrTimeline={data.hrTimeline} dob={data.profile.dob} />
-          </Suspense>
+        {tab === 'trainings' && (data.workouts.length > 0 ? (
+          <div className="space-y-6">
+            <TabHeader title="Trainings" description="Workout type breakdown plus per-session detail with GPS routes, heart rate, pace, and elevation." />
+            {topWorkouts.length > 0 && (
+              <div className="space-y-3">
+                <SectionHeader>Types</SectionHeader>
+                <div className="bg-zinc-900 rounded-xl border border-zinc-800 p-4">
+                  <h3 className="text-sm font-medium text-zinc-300 mb-3">Workout Types ({totalWorkouts} total)</h3>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-8 gap-3">
+                    {topWorkouts.map(w => (
+                      <div key={w.type} className="bg-zinc-800/50 rounded-lg p-3 min-w-0">
+                        <div className="text-sm font-medium text-zinc-200 truncate" title={w.type}>{humanizeWorkoutType(w.type)}</div>
+                        <div className="text-lg font-semibold text-zinc-100 mt-1">{w.count}<span className="text-xs text-zinc-500 ml-1">sessions</span></div>
+                        <div className="text-xs text-zinc-500 mt-0.5 truncate">{Math.round(w.totalMinutes / 60)}h · {fmt(w.totalCalories)} kcal</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+            <div className="space-y-3">
+              <SectionHeader>Detail</SectionHeader>
+              {hasGpx ? (
+                <Suspense fallback={Loading}>
+                  <TrainingViewer workouts={data.workouts} gpxFiles={data.gpxFiles} hrTimeline={data.hrTimeline} dob={data.profile.dob} />
+                </Suspense>
+              ) : (
+                <div className="bg-zinc-900 rounded-xl border border-zinc-800 p-6 text-center text-xs text-zinc-500">
+                  No GPX routes in this import. Drop a folder with <code className="text-zinc-400">workout-routes/*.gpx</code> to see route maps.
+                </div>
+              )}
+            </div>
+          </div>
         ) : (
-          <EmptyState icon={<Dumbbell size={28} />} title="No GPX routes found" hint="Drag the export folder that includes your workout-routes/*.gpx files to see trainings on a map." />
+          <EmptyState icon={<Dumbbell size={28} />} title="No workouts found" hint="No workout records were detected in this import." />
         ))}
 
         {tab === 'compare' && (hasGpx ? (
@@ -508,14 +537,14 @@ export default function Dashboard({ data, onReset }: { data: HealthData; onReset
         <TabHeader title="Overview" description="Your health at a glance — key metrics and trend movement across multiple windows." />
         <SectionHeader>At a Glance</SectionHeader>
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-8 gap-3">
-          <StatBox label="Steps" value={fmt(avgSteps)} unit="/day" sub="30d avg" color={COLORS.blue} sparkData={sparkFor('steps')} />
-          <StatBox label="Sleep" value={fmt(avgSleep, 1)} unit="hrs" sub="30d avg" color={COLORS.cyan} sparkData={sparkFor('sleepHours')} />
-          <StatBox label="Resting HR" value={fmt(avgHR, 0)} unit="bpm" sub="30d avg" color={COLORS.red} sparkData={sparkFor('restingHeartRate')} />
-          <StatBox label="HRV" value={fmt(avgHRV, 0)} unit="ms" sub="30d avg" color={COLORS.purple} sparkData={sparkFor('hrv')} />
-          <StatBox label="Weight" value={fmt(latestWeight, 1)} unit="kg" sub="Latest" color={COLORS.orange} sparkData={sparkFor('weight')} />
-          <StatBox label="VO2 Max" value={fmt(latestVO2, 1)} unit="mL/kg/min" sub="Latest" color={COLORS.green} sparkData={sparkFor('vo2max')} />
-          <StatBox label="Distance" value={fmt(avgMetric(recent30, 'distance'), 1)} unit="km/day" sub="30d avg" color={COLORS.green} sparkData={sparkFor('distance')} />
-          <StatBox label="Workouts" value={`${totalWorkouts}`} unit="total" sub={`${workoutsByMonth.length > 0 ? workoutsByMonth[workoutsByMonth.length - 1]?.count || 0 : 0} this month`} />
+          <StatBox label="Steps" icon={<Footprints size={14} />} value={fmt(avgSteps)} unit="/day" sub="30d avg" color={COLORS.blue} sparkData={sparkFor('steps')} />
+          <StatBox label="Sleep" icon={<Moon size={14} />} value={fmt(avgSleep, 1)} unit="hrs" sub="30d avg" color={COLORS.cyan} sparkData={sparkFor('sleepHours')} />
+          <StatBox label="Resting HR" icon={<Heart size={14} />} value={fmt(avgHR, 0)} unit="bpm" sub="30d avg" color={COLORS.red} sparkData={sparkFor('restingHeartRate')} />
+          <StatBox label="HRV" icon={<Waves size={14} />} value={fmt(avgHRV, 0)} unit="ms" sub="30d avg" color={COLORS.purple} sparkData={sparkFor('hrv')} />
+          <StatBox label="Weight" icon={<Scale size={14} />} value={fmt(latestWeight, 1)} unit="kg" sub="Latest" color={COLORS.orange} sparkData={sparkFor('weight')} />
+          <StatBox label="VO2 Max" icon={<Wind size={14} />} value={fmt(latestVO2, 1)} unit="mL/kg/min" sub="Latest" color={COLORS.green} sparkData={sparkFor('vo2max')} />
+          <StatBox label="Distance" icon={<MapPin size={14} />} value={fmt(avgMetric(recent30, 'distance'), 1)} unit="km/day" sub="30d avg" color={COLORS.green} sparkData={sparkFor('distance')} />
+          <StatBox label="Workouts" icon={<Dumbbell size={14} />} value={`${totalWorkouts}`} unit="total" color={COLORS.zinc} sub={`${workoutsByMonth.length > 0 ? workoutsByMonth[workoutsByMonth.length - 1]?.count || 0 : 0} this month`} />
         </div>
 
         {/* Key charts */}
@@ -644,25 +673,6 @@ export default function Dashboard({ data, onReset }: { data: HealthData; onReset
             </ChartCard>
           )}
         </div>
-
-        {/* Workout breakdown */}
-        {topWorkouts.length > 0 && (
-          <>
-            <SectionHeader>Workouts</SectionHeader>
-            <div className="bg-zinc-900 rounded-xl border border-zinc-800 p-4">
-              <h3 className="text-sm font-medium text-zinc-300 mb-3">Workout Types ({totalWorkouts} total)</h3>
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-8 gap-3">
-                {topWorkouts.map(w => (
-                  <div key={w.type} className="bg-zinc-800/50 rounded-lg p-3 min-w-0">
-                    <div className="text-sm font-medium text-zinc-200 truncate" title={w.type}>{humanizeWorkoutType(w.type)}</div>
-                    <div className="text-lg font-semibold text-zinc-100 mt-1">{w.count}<span className="text-xs text-zinc-500 ml-1">sessions</span></div>
-                    <div className="text-xs text-zinc-500 mt-0.5 truncate">{Math.round(w.totalMinutes / 60)}h · {fmt(w.totalCalories)} kcal</div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </>
-        )}
 
         {/* Trends + AI Insights inlined into Overview */}
         <Suspense fallback={Loading}>

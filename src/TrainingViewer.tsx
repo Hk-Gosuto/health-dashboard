@@ -5,7 +5,7 @@ import {
 } from 'recharts'
 import type { GpxRoute, GpxPoint, Workout, HRSample } from './types'
 import 'leaflet/dist/leaflet.css'
-import { StatBox, AISummaryButton, TabHeader, useChartTheme, ChartTooltip } from './ui'
+import { StatBox, AISummaryButton, useChartTheme, ChartTooltip } from './ui'
 
 interface Props {
   workouts: Workout[]
@@ -415,7 +415,6 @@ export default function TrainingViewer({ workouts, gpxFiles, hrTimeline, dob }: 
 
   return (
     <>
-      <TabHeader title="Trainings" description="Detailed workout sessions with GPS routes, heart rate, pace, and elevation data." />
       <div className="grid grid-cols-1 lg:grid-cols-[350px_1fr] gap-3">
       {/* Left panel: workout list */}
       <div className="bg-zinc-900 rounded-xl border border-zinc-800 overflow-hidden">
