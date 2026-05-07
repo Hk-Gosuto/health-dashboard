@@ -1,8 +1,9 @@
 import { useMemo } from 'react'
 import type { HealthData, DailyMetrics } from './types'
 import { computeMultiWindowTrends, type MultiWindowInput, type MultiWindowTrend, type MultiWindowRow } from './analysis'
-import { COLORS, Sparkline, fmt } from './ui'
-import { ArrowUp, ArrowDown, Minus } from 'lucide-react'
+import { COLORS, Sparkline, SubsectionHeader, fmt } from './ui'
+import { ArrowUp, ArrowDown, Minus, Heart, Waves, Wind, Moon, Droplets, Scale, Footprints, Flame, MapPin, Dumbbell, Activity } from 'lucide-react'
+import type { ReactNode } from 'react'
 
 interface Props {
   data: HealthData
@@ -115,6 +116,21 @@ function TrendArrow({ direction }: { direction: MultiWindowRow['direction'] }) {
   return <Minus size={12} />
 }
 
+const METRIC_STYLE: Record<string, { icon: ReactNode; color: string }> = {
+  'Resting Heart Rate': { icon: <Heart size={14} />, color: COLORS.red },
+  'Heart Rate Variability': { icon: <Waves size={14} />, color: COLORS.purple },
+  'VO2 Max': { icon: <Wind size={14} />, color: COLORS.green },
+  'Walking HR': { icon: <Activity size={14} />, color: COLORS.red },
+  'Sleep': { icon: <Moon size={14} />, color: COLORS.cyan },
+  'Respiratory Rate': { icon: <Wind size={14} />, color: COLORS.zinc },
+  'Blood Oxygen': { icon: <Droplets size={14} />, color: COLORS.blue },
+  'Weight': { icon: <Scale size={14} />, color: COLORS.orange },
+  'Steps': { icon: <Footprints size={14} />, color: COLORS.blue },
+  'Active Energy': { icon: <Flame size={14} />, color: COLORS.orange },
+  'Distance': { icon: <MapPin size={14} />, color: COLORS.green },
+  'Exercise': { icon: <Dumbbell size={14} />, color: COLORS.pink },
+}
+
 function TrendCard({ trend }: { trend: MultiWindowTrend }) {
   const decimals = trend.unit === 'kcal' || trend.unit === '/day' || trend.unit === 'min' || trend.unit === 'br/min' ? 0 : 1
   // Shared y-scale across all windows so visual magnitudes are honest.
@@ -125,18 +141,24 @@ function TrendCard({ trend }: { trend: MultiWindowTrend }) {
       if (v > sparkMax) sparkMax = v
     }
   }
+  const style = METRIC_STYLE[trend.metric]
+  const accent = style?.color || '#71717a'
   return (
-    <div className="bg-zinc-900 rounded-xl border border-zinc-800 p-4">
-      <div className="flex items-baseline justify-between mb-1">
-        <div className="flex items-baseline gap-2 min-w-0">
-          <h3 className="text-sm font-medium text-zinc-200 truncate">{trend.metric}</h3>
-          <span className="text-[10px] uppercase tracking-wider text-zinc-600 shrink-0">{CATEGORY_LABEL[trend.category]}</span>
+    <div className="rounded-xl border border-zinc-800/60 p-4">
+      <div className="flex items-center justify-between mb-3 gap-2">
+        <div className="flex items-center gap-1.5 min-w-0 text-[12px] font-medium text-zinc-300">
+          {style?.icon ? (
+            <span className="shrink-0" style={{ color: accent }}>{style.icon}</span>
+          ) : (
+            <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: accent }} />
+          )}
+          <span className="truncate">{trend.metric}</span>
+          <span className="text-[10px] uppercase tracking-wider text-zinc-600 shrink-0 ml-1">{CATEGORY_LABEL[trend.category]}</span>
         </div>
         <div className="text-xs font-mono text-zinc-500 shrink-0">
           <span className="text-zinc-300">{fmt(trend.latest, decimals)}</span> {trend.unit}
         </div>
       </div>
-      <div className="mb-2" />
       <div className="divide-y divide-zinc-800/60">
         {trend.windows.map(row => {
           const color = rowColor(row)
@@ -180,12 +202,7 @@ export default function Trends({ data, metrics }: Props) {
 
   return (
     <div className="space-y-4">
-      <div>
-        <h2 className="text-[22px] font-semibold text-zinc-100 tracking-tight">Trends</h2>
-        <p className="text-xs text-zinc-500 mt-1 leading-relaxed max-w-2xl">
-          How your key metrics are moving across multiple time windows. Each row compares the recent window to the window before it.
-        </p>
-      </div>
+      <SubsectionHeader title="Trends" description="How your key metrics are moving across multiple time windows. Each row compares the recent window to the window before it." />
       <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-3">
         {ordered.map(t => <TrendCard key={t.metric} trend={t} />)}
       </div>

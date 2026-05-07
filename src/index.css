@@ -81,23 +81,23 @@ button, [role="button"], label[class*="cursor"] {
 }
 
 :root.light .bg-zinc-950 {
-  background-color: #ffffff !important;
+  background-color: #fafafa !important;
 }
 
 :root.light .bg-zinc-900 {
-  background-color: #f4f4f5 !important;
+  background-color: #ffffff !important;
 }
 
 :root.light .bg-zinc-900\/95 {
-  background-color: rgba(244, 244, 245, 0.95) !important;
+  background-color: rgba(255, 255, 255, 0.95) !important;
 }
 
 :root.light .bg-zinc-950\/90 {
-  background-color: rgba(255, 255, 255, 0.9) !important;
+  background-color: rgba(250, 250, 250, 0.9) !important;
 }
 
 :root.light .bg-zinc-950\/95 {
-  background-color: rgba(255, 255, 255, 0.95) !important;
+  background-color: rgba(250, 250, 250, 0.95) !important;
 }
 
 :root.light .bg-zinc-800 {
@@ -116,8 +116,24 @@ button, [role="button"], label[class*="cursor"] {
   border-color: #e4e4e7 !important;
 }
 
+:root.light .border-zinc-800\/60 {
+  border-color: #e4e4e7 !important;
+}
+
+:root.light .border-zinc-800\/70 {
+  border-color: #d4d4d8 !important;
+}
+
 :root.light .border-zinc-700 {
   border-color: #d4d4d8 !important;
+}
+
+:root.light .border-zinc-700\/70 {
+  border-color: #a1a1aa !important;
+}
+
+:root.light .hover\:border-zinc-700\/70:hover {
+  border-color: #a1a1aa !important;
 }
 
 :root.light .text-zinc-100 {
@@ -137,11 +153,11 @@ button, [role="button"], label[class*="cursor"] {
 }
 
 :root.light .text-zinc-500 {
-  color: #71717a !important;
+  color: #52525b !important;
 }
 
 :root.light .text-zinc-600 {
-  color: #a1a1aa !important;
+  color: #71717a !important;
 }
 
 :root.light .text-white {

@@ -156,8 +156,8 @@ export function Sparkline({ data, color, height = 24, width = 80, fluid = false,
 }
 
 // === Shared components ===
-export function StatBox({ label, value, unit, sub, color, trend, sparkData, icon }: {
-  label: string; value: string; unit?: string; sub?: string; color?: string
+export function StatBox({ label, value, unit, sub, latest, color, trend, sparkData, icon }: {
+  label: string; value: string; unit?: string; sub?: string; latest?: string; color?: string
   trend?: { direction: 'up' | 'down'; positive: boolean; changePercent: number }
   sparkData?: number[]
   icon?: ReactNode
@@ -165,7 +165,7 @@ export function StatBox({ label, value, unit, sub, color, trend, sparkData, icon
   const accent = color || '#71717a'
   const hasSpark = !!(sparkData && sparkData.length >= 3)
   return (
-    <div className="bg-zinc-900 rounded-xl p-4 transition-colors hover:bg-zinc-800/40 flex flex-col gap-3 min-h-[140px]">
+    <div className="rounded-xl border border-zinc-800/60 p-4 flex flex-col gap-3 min-h-[140px]">
       <div className="flex items-center gap-1.5 text-[12px] font-medium text-zinc-300">
         {icon ? (
           <span className="shrink-0" style={{ color: accent }}>{icon}</span>
@@ -192,7 +192,12 @@ export function StatBox({ label, value, unit, sub, color, trend, sparkData, icon
               <span className="text-zinc-600 font-normal ml-1">30d</span>
             </div>
           ) : (
-            sub && <div className="text-zinc-500 text-[10px] mt-1.5 tabular-nums uppercase tracking-wider">{sub}</div>
+            (sub || latest) && (
+              <div className="text-zinc-500 text-[10px] mt-1.5 tabular-nums uppercase tracking-wider">
+                {sub}
+                {latest && <span className="text-zinc-400">{sub ? ' · ' : ''}LATEST {latest}</span>}
+              </div>
+            )
           )}
         </div>
       </div>
@@ -424,15 +429,25 @@ export function AISummaryButton({ title, description, chartData }: {
   )
 }
 
-export const ChartCard = memo(function ChartCard({ title, description, tall, chartData, children }: {
-  title: string; description?: string; tall?: boolean; chartData?: unknown[]; children: React.ReactNode
+export const ChartCard = memo(function ChartCard({ title, description, tall, chartData, icon, color, children }: {
+  title: string; description?: string; tall?: boolean; chartData?: unknown[]
+  icon?: ReactNode; color?: string
+  children: React.ReactNode
 }) {
+  const accent = color || '#71717a'
   return (
-    <div className="bg-zinc-900 rounded-xl p-4 transition-colors duration-150 hover:bg-zinc-800/40">
-      <div className="flex items-start justify-between mb-1">
-        <div>
-          <h3 className="text-sm font-medium text-zinc-300">{title}</h3>
-          {description && <p className="text-xs text-zinc-500 mt-0.5">{description}</p>}
+    <div className="rounded-xl border border-zinc-800/60 p-4">
+      <div className="flex items-start justify-between mb-3 gap-2">
+        <div className="min-w-0">
+          <div className="flex items-center gap-1.5 text-[12px] font-medium text-zinc-300">
+            {icon ? (
+              <span className="shrink-0" style={{ color: accent }}>{icon}</span>
+            ) : (
+              <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: accent }} />
+            )}
+            <span className="truncate">{title}</span>
+          </div>
+          {description && <p className="text-[10px] text-zinc-500 mt-1 uppercase tracking-wider">{description}</p>}
         </div>
         {chartData && chartData.length > 0 && (
           <AISummaryButton title={title} description={description} chartData={chartData} />
@@ -464,6 +479,17 @@ export function SectionHeader({ children }: { children: string }) {
     <h2 className="text-[11px] font-medium tracking-wider uppercase text-zinc-600">
       {children}
     </h2>
+  )
+}
+
+export function SubsectionHeader({ title, description }: { title: string; description?: string }) {
+  return (
+    <div>
+      <h2 className="text-[22px] font-semibold text-zinc-100 tracking-tight">{title}</h2>
+      {description && (
+        <p className="text-xs text-zinc-500 mt-1 leading-relaxed">{description}</p>
+      )}
+    </div>
   )
 }
 

@@ -287,11 +287,11 @@ export default function AIInsights({ data, metrics }: Props) {
     <div className="space-y-4">
       <TabHeader title="AI Insights" description="AI-powered analysis of your health data to surface trends and actionable recommendations." />
       {/* API Key */}
-      <div className="bg-zinc-900 rounded-xl border border-zinc-800 p-4">
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-3">
-            <Key size={16} className="text-zinc-400" />
-            <h3 className="text-sm font-medium text-zinc-300">OpenRouter API Key</h3>
+      <div className="rounded-xl border border-zinc-800/60 p-4">
+        <div className="flex items-center justify-between mb-3 gap-2">
+          <div className="flex items-center gap-1.5 text-[12px] font-medium text-zinc-300">
+            <span className="shrink-0 text-purple-400"><Key size={14} /></span>
+            <span className="truncate">OpenRouter API Key</span>
           </div>
           {messages.length > 0 && (
             <div className="flex items-center gap-2">

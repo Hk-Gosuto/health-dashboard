@@ -1,7 +1,7 @@
 import { useMemo, useState, useEffect, useCallback, lazy, Suspense, Fragment, type ReactNode } from 'react'
 import {
-  XAxis, YAxis, Tooltip, BarChart, Bar,
-  CartesianGrid, Area, AreaChart,
+  XAxis, YAxis, Tooltip,
+  CartesianGrid, Area, AreaChart, ReferenceLine,
 } from 'recharts'
 import type { HealthData, DailyMetrics } from './types'
 import {
@@ -11,7 +11,7 @@ import {
   SunMedium, MoonStar, Footprints, Zap, TrendingUp, Wind, MapPin, Waves,
 } from 'lucide-react'
 import { groupedAverage, workoutSummary, monthlyWorkouts } from './analysis'
-import { COLORS, chartMargin, StatBox, ChartCard, SectionHeader, TabHeader, ChartTooltip, shortDateCompact, shortMonth, fmt, humanizeWorkoutType, useChartTheme, TabSkeleton, EmptyState } from './ui'
+import { COLORS, chartMargin, StatBox, ChartCard, SectionHeader, SubsectionHeader, TabHeader, ChartTooltip, shortDateCompact, fmt, humanizeWorkoutType, useChartTheme, TabSkeleton, EmptyState } from './ui'
 
 const TrainingViewer = lazy(() => import('./TrainingViewer'))
 const SleepAnalysis = lazy(() => import('./SleepAnalysis'))
@@ -65,6 +65,11 @@ function parseHash(): { tab?: Tab; range?: TimeRange; granularity?: Granularity 
   }
 }
 
+function applyThemeClass(t: 'light' | 'dark') {
+  document.documentElement.classList.toggle('dark', t === 'dark')
+  document.documentElement.classList.toggle('light', t === 'light')
+}
+
 function useTheme() {
   const [theme, setThemeState] = useState<'light' | 'dark'>(() => {
     const stored = localStorage.getItem('health-dashboard-theme')
@@ -73,13 +78,14 @@ function useTheme() {
   })
 
   const setTheme = useCallback((t: 'light' | 'dark') => {
-    setThemeState(t)
+    // Apply class synchronously so chart theme hooks read the new value on the next render
+    applyThemeClass(t)
     localStorage.setItem('health-dashboard-theme', t)
+    setThemeState(t)
   }, [])
 
   useEffect(() => {
-    document.documentElement.classList.toggle('dark', theme === 'dark')
-    document.documentElement.classList.toggle('light', theme === 'light')
+    applyThemeClass(theme)
   }, [theme])
 
   return [theme, setTheme] as const
@@ -180,7 +186,11 @@ export default function Dashboard({ data, onReset }: { data: HealthData; onReset
   const sleepData = useMemo(() => groupedAverage(filteredMetrics, 'sleepHours', granularity), [filteredMetrics, granularity])
   const distanceData = useMemo(() => groupedAverage(filteredMetrics, 'distance', granularity), [filteredMetrics, granularity])
   const weightData = useMemo(() => groupedAverage(filteredMetrics, 'weight', granularity), [filteredMetrics, granularity])
+  const vo2Data = useMemo(() => groupedAverage(filteredMetrics, 'vo2max', granularity), [filteredMetrics, granularity])
   const workoutsByMonth = useMemo(() => monthlyWorkouts(data.workouts), [data.workouts])
+
+  const avgOf = (data: { value: number }[]): number =>
+    data.length === 0 ? 0 : data.reduce((s, d) => s + d.value, 0) / data.length
   const topWorkouts = useMemo(() => workoutSummary(data.workouts).slice(0, 8), [data.workouts])
 
   // Summary stats (last 30 days)
@@ -191,6 +201,11 @@ export default function Dashboard({ data, onReset }: { data: HealthData; onReset
   const avgHRV = avgMetric(recent30, 'hrv')
   const latestWeight = findLatest(allMetrics, 'weight')
   const latestVO2 = findLatest(allMetrics, 'vo2max')
+  const latestSteps = findLatest(allMetrics, 'steps')
+  const latestSleep = findLatest(allMetrics, 'sleepHours')
+  const latestHR = findLatest(allMetrics, 'restingHeartRate')
+  const latestHRV = findLatest(allMetrics, 'hrv')
+  const latestDistance = findLatest(allMetrics, 'distance')
   const totalWorkouts = data.workouts.length
 
   // Spark data for overview stat boxes
@@ -535,23 +550,23 @@ export default function Dashboard({ data, onReset }: { data: HealthData; onReset
         {tab === 'overview' && <>
         {/* Key Metrics */}
         <TabHeader title="Overview" description="Your health at a glance — key metrics and trend movement across multiple windows." />
-        <SectionHeader>At a Glance</SectionHeader>
+        <SubsectionHeader title="At a Glance" description="30-day averages and latest readings across your key health metrics." />
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-8 gap-3">
-          <StatBox label="Steps" icon={<Footprints size={14} />} value={fmt(avgSteps)} unit="/day" sub="30d avg" color={COLORS.blue} sparkData={sparkFor('steps')} />
-          <StatBox label="Sleep" icon={<Moon size={14} />} value={fmt(avgSleep, 1)} unit="hrs" sub="30d avg" color={COLORS.cyan} sparkData={sparkFor('sleepHours')} />
-          <StatBox label="Resting HR" icon={<Heart size={14} />} value={fmt(avgHR, 0)} unit="bpm" sub="30d avg" color={COLORS.red} sparkData={sparkFor('restingHeartRate')} />
-          <StatBox label="HRV" icon={<Waves size={14} />} value={fmt(avgHRV, 0)} unit="ms" sub="30d avg" color={COLORS.purple} sparkData={sparkFor('hrv')} />
+          <StatBox label="Steps" icon={<Footprints size={14} />} value={fmt(avgSteps)} unit="/day" sub="30d avg" latest={latestSteps !== null ? fmt(latestSteps, 0) : undefined} color={COLORS.blue} sparkData={sparkFor('steps')} />
+          <StatBox label="Sleep" icon={<Moon size={14} />} value={fmt(avgSleep, 1)} unit="hrs" sub="30d avg" latest={latestSleep !== null ? `${fmt(latestSleep, 1)}h` : undefined} color={COLORS.cyan} sparkData={sparkFor('sleepHours')} />
+          <StatBox label="Resting HR" icon={<Heart size={14} />} value={fmt(avgHR, 0)} unit="bpm" sub="30d avg" latest={latestHR !== null ? `${fmt(latestHR, 0)}` : undefined} color={COLORS.red} sparkData={sparkFor('restingHeartRate')} />
+          <StatBox label="HRV" icon={<Waves size={14} />} value={fmt(avgHRV, 0)} unit="ms" sub="30d avg" latest={latestHRV !== null ? `${fmt(latestHRV, 0)}` : undefined} color={COLORS.purple} sparkData={sparkFor('hrv')} />
           <StatBox label="Weight" icon={<Scale size={14} />} value={fmt(latestWeight, 1)} unit="kg" sub="Latest" color={COLORS.orange} sparkData={sparkFor('weight')} />
           <StatBox label="VO2 Max" icon={<Wind size={14} />} value={fmt(latestVO2, 1)} unit="mL/kg/min" sub="Latest" color={COLORS.green} sparkData={sparkFor('vo2max')} />
-          <StatBox label="Distance" icon={<MapPin size={14} />} value={fmt(avgMetric(recent30, 'distance'), 1)} unit="km/day" sub="30d avg" color={COLORS.green} sparkData={sparkFor('distance')} />
+          <StatBox label="Distance" icon={<MapPin size={14} />} value={fmt(avgMetric(recent30, 'distance'), 1)} unit="km/day" sub="30d avg" latest={latestDistance !== null ? `${fmt(latestDistance, 1)}` : undefined} color={COLORS.green} sparkData={sparkFor('distance')} />
           <StatBox label="Workouts" icon={<Dumbbell size={14} />} value={`${totalWorkouts}`} unit="total" color={COLORS.zinc} sub={`${workoutsByMonth.length > 0 ? workoutsByMonth[workoutsByMonth.length - 1]?.count || 0 : 0} this month`} />
         </div>
 
         {/* Key charts */}
-        <SectionHeader>Charts</SectionHeader>
+        <SubsectionHeader title="Charts" description="Trends over time for the metrics that matter most." />
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
             {stepsData.length > 0 && (
-              <ChartCard title="Steps" chartData={stepsData}>
+              <ChartCard title="Steps" chartData={stepsData} icon={<Footprints size={14} />} color={COLORS.blue}>
                 <AreaChart margin={chartMargin} data={stepsData}>
                   <defs>
                     <linearGradient id="stepsGrad" x1="0" y1="0" x2="0" y2="1">
@@ -563,13 +578,14 @@ export default function Dashboard({ data, onReset }: { data: HealthData; onReset
                   <XAxis dataKey="week" tick={{ fontSize: 10, fill: ct.tick }} tickFormatter={shortDateCompact} interval="preserveStartEnd" minTickGap={40} />
                   <YAxis tick={{ fontSize: 10, fill: ct.tick }} />
                   <Tooltip content={<ChartTooltip />} />
+                  <ReferenceLine y={avgOf(stepsData)} stroke={COLORS.blue} strokeDasharray="4 4" strokeOpacity={0.5} label={{ value: 'avg', position: 'right', fill: ct.tick, fontSize: 9 }} />
                   <Area type="monotone" dataKey="value" stroke={COLORS.blue} fill="url(#stepsGrad)" strokeWidth={1.5} dot={false} />
                 </AreaChart>
               </ChartCard>
             )}
 
             {sleepData.length > 0 && (
-              <ChartCard title="Sleep" chartData={sleepData}>
+              <ChartCard title="Sleep" chartData={sleepData} icon={<Moon size={14} />} color={COLORS.cyan}>
                 <AreaChart margin={chartMargin} data={sleepData}>
                   <defs>
                     <linearGradient id="sleepGrad" x1="0" y1="0" x2="0" y2="1">
@@ -581,13 +597,14 @@ export default function Dashboard({ data, onReset }: { data: HealthData; onReset
                   <XAxis dataKey="week" tick={{ fontSize: 10, fill: ct.tick }} tickFormatter={shortDateCompact} interval="preserveStartEnd" minTickGap={40} />
                   <YAxis domain={['auto', 'auto']} tick={{ fontSize: 10, fill: ct.tick }} />
                   <Tooltip content={<ChartTooltip />} />
+                  <ReferenceLine y={avgOf(sleepData)} stroke={COLORS.cyan} strokeDasharray="4 4" strokeOpacity={0.5} label={{ value: 'avg', position: 'right', fill: ct.tick, fontSize: 9 }} />
                   <Area type="monotone" dataKey="value" stroke={COLORS.cyan} fill="url(#sleepGrad)" strokeWidth={1.5} dot={false} />
                 </AreaChart>
               </ChartCard>
             )}
 
             {hrData.length > 0 && (
-              <ChartCard title="Resting Heart Rate" chartData={hrData}>
+              <ChartCard title="Resting Heart Rate" chartData={hrData} icon={<Heart size={14} />} color={COLORS.red}>
                 <AreaChart margin={chartMargin} data={hrData}>
                   <defs>
                     <linearGradient id="hrGrad" x1="0" y1="0" x2="0" y2="1">
@@ -599,13 +616,14 @@ export default function Dashboard({ data, onReset }: { data: HealthData; onReset
                   <XAxis dataKey="week" tick={{ fontSize: 10, fill: ct.tick }} tickFormatter={shortDateCompact} interval="preserveStartEnd" minTickGap={40} />
                   <YAxis domain={['auto', 'auto']} tick={{ fontSize: 10, fill: ct.tick }} />
                   <Tooltip content={<ChartTooltip />} />
+                  <ReferenceLine y={avgOf(hrData)} stroke={COLORS.red} strokeDasharray="4 4" strokeOpacity={0.5} label={{ value: 'avg', position: 'right', fill: ct.tick, fontSize: 9 }} />
                   <Area type="monotone" dataKey="value" stroke={COLORS.red} fill="url(#hrGrad)" strokeWidth={1.5} dot={false} />
                 </AreaChart>
               </ChartCard>
             )}
 
             {hrvData.length > 0 && (
-              <ChartCard title="Heart Rate Variability" chartData={hrvData}>
+              <ChartCard title="Heart Rate Variability" chartData={hrvData} icon={<Waves size={14} />} color={COLORS.purple}>
                 <AreaChart margin={chartMargin} data={hrvData}>
                   <defs>
                     <linearGradient id="hrvGrad2" x1="0" y1="0" x2="0" y2="1">
@@ -617,6 +635,7 @@ export default function Dashboard({ data, onReset }: { data: HealthData; onReset
                   <XAxis dataKey="week" tick={{ fontSize: 10, fill: ct.tick }} tickFormatter={shortDateCompact} interval="preserveStartEnd" minTickGap={40} />
                   <YAxis domain={['auto', 'auto']} tick={{ fontSize: 10, fill: ct.tick }} />
                   <Tooltip content={<ChartTooltip />} />
+                  <ReferenceLine y={avgOf(hrvData)} stroke={COLORS.purple} strokeDasharray="4 4" strokeOpacity={0.5} label={{ value: 'avg', position: 'right', fill: ct.tick, fontSize: 9 }} />
                   <Area type="monotone" dataKey="value" stroke={COLORS.purple} fill="url(#hrvGrad2)" strokeWidth={1.5} dot={false} />
                 </AreaChart>
               </ChartCard>
@@ -626,7 +645,7 @@ export default function Dashboard({ data, onReset }: { data: HealthData; onReset
         {/* Secondary charts */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
           {distanceData.length > 0 && (
-            <ChartCard title="Distance (km)" chartData={distanceData}>
+            <ChartCard title="Distance (km)" chartData={distanceData} icon={<MapPin size={14} />} color={COLORS.green}>
               <AreaChart margin={chartMargin} data={distanceData}>
                 <defs>
                   <linearGradient id="distGrad" x1="0" y1="0" x2="0" y2="1">
@@ -638,13 +657,14 @@ export default function Dashboard({ data, onReset }: { data: HealthData; onReset
                 <XAxis dataKey="week" tick={{ fontSize: 10, fill: ct.tick }} tickFormatter={shortDateCompact} interval="preserveStartEnd" minTickGap={40} />
                 <YAxis tick={{ fontSize: 10, fill: ct.tick }} />
                 <Tooltip content={<ChartTooltip />} />
+                <ReferenceLine y={avgOf(distanceData)} stroke={COLORS.green} strokeDasharray="4 4" strokeOpacity={0.5} label={{ value: 'avg', position: 'right', fill: ct.tick, fontSize: 9 }} />
                 <Area type="monotone" dataKey="value" stroke={COLORS.green} fill="url(#distGrad)" strokeWidth={1.5} dot={false} />
               </AreaChart>
             </ChartCard>
           )}
 
           {weightData.length > 0 && (
-            <ChartCard title="Weight (kg)" chartData={weightData}>
+            <ChartCard title="Weight (kg)" chartData={weightData} icon={<Scale size={14} />} color={COLORS.orange}>
               <AreaChart margin={chartMargin} data={weightData}>
                 <defs>
                   <linearGradient id="weightGrad" x1="0" y1="0" x2="0" y2="1">
@@ -656,20 +676,28 @@ export default function Dashboard({ data, onReset }: { data: HealthData; onReset
                 <XAxis dataKey="week" tick={{ fontSize: 10, fill: ct.tick }} tickFormatter={shortDateCompact} interval="preserveStartEnd" minTickGap={40} />
                 <YAxis domain={['auto', 'auto']} tick={{ fontSize: 10, fill: ct.tick }} />
                 <Tooltip content={<ChartTooltip />} />
+                <ReferenceLine y={avgOf(weightData)} stroke={COLORS.orange} strokeDasharray="4 4" strokeOpacity={0.5} label={{ value: 'avg', position: 'right', fill: ct.tick, fontSize: 9 }} />
                 <Area type="monotone" dataKey="value" stroke={COLORS.orange} fill="url(#weightGrad)" strokeWidth={1.5} dot={false} />
               </AreaChart>
             </ChartCard>
           )}
 
-          {workoutsByMonth.length > 0 && (
-            <ChartCard title="Monthly Workouts" chartData={workoutsByMonth}>
-              <BarChart margin={chartMargin} data={workoutsByMonth}>
+          {vo2Data.length > 0 && (
+            <ChartCard title="VO2 Max" chartData={vo2Data} icon={<Wind size={14} />} color={COLORS.green}>
+              <AreaChart margin={chartMargin} data={vo2Data}>
+                <defs>
+                  <linearGradient id="vo2Grad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor={COLORS.green} stopOpacity={0.3} />
+                    <stop offset="95%" stopColor={COLORS.green} stopOpacity={0} />
+                  </linearGradient>
+                </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke={ct.grid} />
-                <XAxis dataKey="month" tick={{ fontSize: 10, fill: ct.tick }} tickFormatter={shortMonth} interval="preserveStartEnd" minTickGap={40} />
-                <YAxis tick={{ fontSize: 10, fill: ct.tick }} />
+                <XAxis dataKey="week" tick={{ fontSize: 10, fill: ct.tick }} tickFormatter={shortDateCompact} interval="preserveStartEnd" minTickGap={40} />
+                <YAxis domain={['auto', 'auto']} tick={{ fontSize: 10, fill: ct.tick }} />
                 <Tooltip content={<ChartTooltip />} />
-                <Bar dataKey="count" fill={COLORS.pink} radius={[4, 4, 0, 0]} />
-              </BarChart>
+                <ReferenceLine y={avgOf(vo2Data)} stroke={COLORS.green} strokeDasharray="4 4" strokeOpacity={0.5} label={{ value: 'avg', position: 'right', fill: ct.tick, fontSize: 9 }} />
+                <Area type="monotone" dataKey="value" stroke={COLORS.green} fill="url(#vo2Grad)" strokeWidth={1.5} dot={false} />
+              </AreaChart>
             </ChartCard>
           )}
         </div>
