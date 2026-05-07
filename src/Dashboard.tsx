@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect, useCallback, lazy, Suspense, Fragment, type ReactNode } from 'react'
+import { useMemo, useState, useEffect, useCallback, lazy, Suspense, type ReactNode } from 'react'
 import {
   XAxis, YAxis, Tooltip,
   CartesianGrid, Area, AreaChart, ReferenceLine,
@@ -6,12 +6,13 @@ import {
 import type { HealthData, DailyMetrics } from './types'
 import {
   LayoutDashboard, CalendarDays, CalendarRange, Heart, Activity,
-  Scale, Moon, Sun, Headphones, GitCompareArrows, Dumbbell, Route, Map, Upload,
-  Gauge, Droplets, PanelLeftClose, PanelLeftOpen,
-  SunMedium, MoonStar, Footprints, Zap, TrendingUp, Wind, MapPin, Waves,
+  Scale, Moon, Sun, Headphones, GitCompareArrows, Dumbbell, Route, Map,
+  Gauge, Droplets,
+  Footprints, Zap, TrendingUp, Wind, MapPin, Waves,
 } from 'lucide-react'
 import { groupedAverage, workoutSummary, monthlyWorkouts } from './analysis'
 import { COLORS, chartMargin, StatBox, ChartCard, SectionHeader, SubsectionHeader, TabHeader, ChartTooltip, shortDateCompact, fmt, humanizeWorkoutType, useChartTheme, TabSkeleton, EmptyState } from './ui'
+import TopNav, { type NavGroup } from './components/TopNav'
 
 const TrainingViewer = lazy(() => import('./TrainingViewer'))
 const SleepAnalysis = lazy(() => import('./SleepAnalysis'))
@@ -38,14 +39,6 @@ type Granularity = 'daily' | 'weekly' | 'monthly'
 type Tab = 'overview' | 'score' | 'yearly' | 'calendar' | 'cardio' | 'body' | 'sleep' | 'menstrual' | 'daylight' | 'audio' | 'correlations' | 'trainings' | 'compare' | 'heatmap' | 'garmin-training' | 'mobility' | 'running' | 'load'
 
 const Loading = <TabSkeleton />
-
-const GROUP_LABELS: Record<number, string> = {
-  1: 'Dashboard',
-  2: 'Health',
-  3: 'Fitness',
-  4: 'Activities',
-  5: 'Trends & Analysis',
-}
 
 const VALID_TABS = new Set<Tab>(['overview', 'score', 'yearly', 'calendar', 'cardio', 'body', 'sleep', 'menstrual', 'daylight', 'audio', 'correlations', 'trainings', 'compare', 'heatmap', 'garmin-training', 'mobility', 'running', 'load'])
 const VALID_RANGES = new Set<TimeRange>(['1w', '3m', '6m', '1y', 'all'])
@@ -211,8 +204,6 @@ export default function Dashboard({ data, onReset }: { data: HealthData; onReset
   // Spark data for overview stat boxes
   const sparkFor = (key: keyof DailyMetrics) => recent30.map(m => m[key] as number).filter(v => v !== null && v > 0)
 
-  const [sidebarOpen, setSidebarOpen] = useState(true)
-
   const tabs: { key: Tab; label: string; icon: ReactNode; show: boolean; group: number }[] = [
     // 1 — Dashboard: current state
     { key: 'overview', label: 'Overview', icon: <LayoutDashboard size={16} />, show: true, group: 1 },
@@ -238,160 +229,62 @@ export default function Dashboard({ data, onReset }: { data: HealthData; onReset
     { key: 'correlations', label: 'Correlations', icon: <GitCompareArrows size={16} />, show: true, group: 5 },
     { key: 'yearly', label: 'Yearly', icon: <CalendarDays size={16} />, show: true, group: 5 },
   ]
-  const visibleTabs = tabs.filter(t => t.show)
+
+  const tabByKey = (key: Tab) => tabs.find(t => t.key === key)
+  const subItem = (key: Tab) => {
+    const t = tabByKey(key)!
+    return { key: t.key, label: t.label, icon: t.icon, show: t.show }
+  }
+  const navGroups: NavGroup[] = [
+    { key: 'overview', label: 'Overview', tabs: [subItem('overview')] },
+    { key: 'score', label: 'Health Score', tabs: [subItem('score')] },
+    {
+      key: 'health',
+      label: 'Health',
+      tabs: [subItem('cardio'), subItem('body'), subItem('sleep'), subItem('menstrual'), subItem('daylight'), subItem('audio')],
+    },
+    {
+      key: 'fitness',
+      label: 'Fitness Activities',
+      tabs: [subItem('mobility'), subItem('running'), subItem('garmin-training'), subItem('load'), subItem('calendar'), subItem('trainings'), subItem('compare'), subItem('heatmap')],
+    },
+    { key: 'analysis', label: 'Analysis', tabs: [subItem('correlations'), subItem('yearly')] },
+  ]
 
   const showControls = tab === 'overview' || tab === 'score' || tab === 'cardio' || tab === 'body' || tab === 'sleep' || tab === 'menstrual' || tab === 'daylight' || tab === 'audio' || tab === 'calendar' || tab === 'garmin-training' || tab === 'mobility' || tab === 'running' || tab === 'load'
 
+  const [settingsOpen, setSettingsOpen] = useState(false)
+
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-100">
-      {/* Desktop sidebar */}
-      <aside
-        style={{ width: sidebarOpen ? 176 : 48 }}
-        className="hidden md:flex fixed top-0 left-0 h-screen border-r border-zinc-800 bg-zinc-950 flex-col z-[100] overflow-hidden transition-[width] duration-150 ease-[cubic-bezier(0.4,0,0.2,1)] will-change-[width]"
-      >
-        {/* Collapse toggle */}
-        <div className="flex items-center px-2 py-3 min-h-[48px]">
-          <button
-            onClick={() => setSidebarOpen(!sidebarOpen)}
-            className="shrink-0 w-8 h-8 flex items-center justify-center rounded-lg text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/50 transition-colors"
-          >
-            {sidebarOpen ? <PanelLeftClose size={16} /> : <PanelLeftOpen size={16} />}
-          </button>
-          <span className={`ml-1 text-[11px] font-semibold tracking-wider uppercase text-zinc-500 whitespace-nowrap transition-opacity duration-150 ${sidebarOpen ? 'opacity-100' : 'opacity-0'}`}>Health</span>
-        </div>
+      <TopNav
+        groups={navGroups}
+        currentTab={tab}
+        onTabChange={(key) => setTab(key as Tab)}
+        theme={theme}
+        onThemeToggle={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+        onReset={onReset}
+        onSettings={showControls ? () => setSettingsOpen(true) : undefined}
+      />
 
-        {/* Nav items */}
-        <nav className="flex-1 overflow-y-auto overflow-x-hidden px-2 pb-3 space-y-0.5">
-          {visibleTabs.map((t, i) => {
-            const isNewGroup = i > 0 && t.group !== visibleTabs[i - 1].group
-            const isFirstItem = i === 0
-            return (
-              <Fragment key={t.key}>
-                {(isNewGroup || isFirstItem) && (
-                  <div className={`overflow-hidden whitespace-nowrap transition-all duration-150 px-2 ${sidebarOpen ? 'opacity-100' : 'max-h-0 opacity-0'} ${isNewGroup ? 'pt-3 pb-1' : 'pb-1'}`}>
-                    <span className="text-[10px] font-medium tracking-wider uppercase text-zinc-600">{GROUP_LABELS[isFirstItem ? visibleTabs[0].group : t.group]}</span>
-                  </div>
-                )}
-                {isNewGroup && !sidebarOpen && (
-                  <div className="h-px bg-zinc-800 my-2 mx-1" />
-                )}
-                <button
-                  onClick={() => setTab(t.key)}
-                  className={`group relative w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg transition-colors duration-150 ${
-                    tab === t.key
-                      ? "text-white before:content-[''] before:absolute before:left-0 before:top-1.5 before:bottom-1.5 before:w-[2px] before:bg-green-500 before:rounded-r"
-                      : 'text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800/50'
-                  }`}
-                >
-                  <span className={`shrink-0 ${tab === t.key ? 'text-green-400' : ''}`}>{t.icon}</span>
-                  <span className={`text-[13px] whitespace-nowrap transition-opacity duration-150 ${sidebarOpen ? 'opacity-100' : 'opacity-0'}`}>{t.label}</span>
-                  <span className={`absolute left-full ml-2 px-2.5 py-1 rounded-md bg-zinc-800 border border-zinc-700 text-xs text-zinc-200 whitespace-nowrap pointer-events-none shadow-lg z-50 transition-opacity duration-150 ${sidebarOpen ? 'opacity-0' : 'opacity-0 group-hover:opacity-100'}`}>
-                    {t.label}
-                  </span>
-                </button>
-              </Fragment>
-            )
-          })}
-        </nav>
+      <SettingsModal
+        open={settingsOpen}
+        onClose={() => setSettingsOpen(false)}
+        granularity={granularity}
+        onGranularityChange={setGranularity}
+        range={range}
+        onRangeChange={(r) => {
+          setRange(r)
+          if (r === '1w') setGranularity('daily')
+          else if (r === '3m') setGranularity('daily')
+          else if (r === '6m') setGranularity('weekly')
+          else if (r === '1y') setGranularity('weekly')
+          else setGranularity('weekly')
+        }}
+      />
 
-        {/* Bottom actions */}
-        <div className="border-t border-zinc-800 dark:border-zinc-800 px-2 py-3 space-y-0.5">
-          <button
-            onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-            className="group relative w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800/50 transition-colors duration-150"
-          >
-            {theme === 'dark' ? <SunMedium size={16} className="shrink-0" /> : <MoonStar size={16} className="shrink-0" />}
-            <span className={`text-[13px] whitespace-nowrap transition-opacity duration-150 ${sidebarOpen ? 'opacity-100' : 'opacity-0'}`}>{theme === 'dark' ? 'Light mode' : 'Dark mode'}</span>
-            <span className={`absolute left-full ml-2 px-2.5 py-1 rounded-md bg-zinc-800 border border-zinc-700 text-xs text-zinc-200 whitespace-nowrap pointer-events-none shadow-lg z-50 transition-opacity duration-150 ${sidebarOpen ? 'opacity-0' : 'opacity-0 group-hover:opacity-100'}`}>
-              {theme === 'dark' ? 'Light mode' : 'Dark mode'}
-            </span>
-          </button>
-          <button
-            onClick={onReset}
-            className="group relative w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800/50 transition-colors duration-150"
-          >
-            <Upload size={16} className="shrink-0" />
-            <span className={`text-[13px] whitespace-nowrap transition-opacity duration-150 ${sidebarOpen ? 'opacity-100' : 'opacity-0'}`}>New import</span>
-            <span className={`absolute left-full ml-2 px-2.5 py-1 rounded-md bg-zinc-800 border border-zinc-700 text-xs text-zinc-200 whitespace-nowrap pointer-events-none shadow-lg z-50 transition-opacity duration-150 ${sidebarOpen ? 'opacity-0' : 'opacity-0 group-hover:opacity-100'}`}>
-              New import
-            </span>
-          </button>
-        </div>
-      </aside>
-
-      {/* Mobile bottom bar */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-[100] bg-zinc-950/95 backdrop-blur-sm border-t border-zinc-800">
-        <div className="flex overflow-x-auto scrollbar-none">
-          {visibleTabs.map(t => (
-            <button
-              key={t.key}
-              onClick={() => setTab(t.key)}
-              className={`flex flex-col items-center gap-1 px-3 py-2.5 min-w-[56px] shrink-0 transition-colors ${
-                tab === t.key ? 'text-white' : 'text-zinc-500'
-              }`}
-            >
-              {t.icon}
-              <span className="text-[9px] leading-none">{t.label}</span>
-            </button>
-          ))}
-          <button
-            onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-            className="flex flex-col items-center gap-1 px-3 py-2.5 min-w-[56px] shrink-0 text-zinc-500 transition-colors"
-          >
-            {theme === 'dark' ? <SunMedium size={16} /> : <MoonStar size={16} />}
-            <span className="text-[9px] leading-none">Theme</span>
-          </button>
-          <button
-            onClick={onReset}
-            className="flex flex-col items-center gap-1 px-3 py-2.5 min-w-[56px] shrink-0 text-zinc-500 transition-colors"
-          >
-            <Upload size={16} />
-            <span className="text-[9px] leading-none">New</span>
-          </button>
-        </div>
-      </nav>
-
-      {/* Main content — margin for desktop sidebar, padding-bottom for mobile bar */}
-      <div style={{ marginLeft: sidebarOpen ? 176 : 48 }} className="min-w-0 max-md:!ml-0 pb-16 md:pb-0">
-        {/* Top bar with controls */}
-        {showControls && (
-          <header className="sticky top-0 bg-zinc-950/90 backdrop-blur-sm z-50 border-b border-zinc-800 px-4 md:px-6 py-2.5 flex items-center gap-2 justify-end">
-            <div className="flex bg-zinc-900 rounded-lg p-0.5 border border-zinc-800">
-              {(['daily', 'weekly', 'monthly'] as Granularity[]).map(g => (
-                <button
-                  key={g}
-                  onClick={() => setGranularity(g)}
-                  className={`px-2.5 py-1 text-xs rounded-md transition-colors capitalize ${
-                    granularity === g ? 'bg-green-500/15 text-green-400 ring-1 ring-green-500/25' : 'text-zinc-400 hover:text-zinc-200'
-                  }`}
-                >
-                  {g.charAt(0).toUpperCase() + g.slice(1, 3)}
-                </button>
-              ))}
-            </div>
-            <div className="flex bg-zinc-900 rounded-lg p-0.5 border border-zinc-800">
-              {(['1w', '3m', '6m', '1y', 'all'] as TimeRange[]).map(r => (
-                <button
-                  key={r}
-                  onClick={() => {
-                    setRange(r)
-                    if (r === '1w') setGranularity('daily')
-                    else if (r === '3m') setGranularity('daily')
-                    else if (r === '6m') setGranularity('weekly')
-                    else if (r === '1y') setGranularity('weekly')
-                    else setGranularity('weekly')
-                  }}
-                  className={`px-3 py-1 text-xs rounded-md transition-colors ${
-                    range === r ? 'bg-green-500/15 text-green-400 ring-1 ring-green-500/25' : 'text-zinc-400 hover:text-zinc-200'
-                  }`}
-                >
-                  {r.toUpperCase()}
-                </button>
-              ))}
-            </div>
-          </header>
-        )}
-
+      {/* Main content — top padding for fixed top bar */}
+      <div className="min-w-0 pt-12">
       <main className="px-4 md:px-6 py-6 space-y-6">
         {tab === 'score' && (
           <Suspense fallback={Loading}>
@@ -733,3 +626,82 @@ function findLatest(metrics: DailyMetrics[], key: keyof DailyMetrics): number | 
   return null
 }
 
+function SettingsModal({
+  open,
+  onClose,
+  granularity,
+  onGranularityChange,
+  range,
+  onRangeChange,
+}: {
+  open: boolean
+  onClose: () => void
+  granularity: Granularity
+  onGranularityChange: (g: Granularity) => void
+  range: TimeRange
+  onRangeChange: (r: TimeRange) => void
+}) {
+  useEffect(() => {
+    if (!open) return
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [open, onClose])
+
+  if (!open) return null
+
+  return (
+    <div className="fixed inset-0 z-[140] flex items-start justify-center pt-24 px-4">
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative w-full max-w-md rounded-xl border border-zinc-800 bg-zinc-900 shadow-xl shadow-black/30 p-5 space-y-5">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <h2 className="text-[15px] font-semibold text-zinc-100">Settings</h2>
+            <p className="text-xs text-zinc-500 mt-0.5">Adjust how charts and stats are aggregated.</p>
+          </div>
+          <button
+            onClick={onClose}
+            aria-label="Close settings"
+            className="w-8 h-8 flex items-center justify-center rounded-lg text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800/60 transition-colors"
+          >
+            ×
+          </button>
+        </div>
+
+        <div>
+          <div className="text-[10px] font-medium tracking-wider uppercase text-zinc-500 mb-2">Granularity</div>
+          <div className="flex bg-zinc-950 rounded-lg p-0.5 border border-zinc-800">
+            {(['daily', 'weekly', 'monthly'] as Granularity[]).map(g => (
+              <button
+                key={g}
+                onClick={() => onGranularityChange(g)}
+                className={`flex-1 px-3 py-1.5 text-xs rounded-md transition-colors capitalize ${
+                  granularity === g ? 'bg-green-500/15 text-green-400 ring-1 ring-green-500/25' : 'text-zinc-400 hover:text-zinc-200'
+                }`}
+              >
+                {g}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div>
+          <div className="text-[10px] font-medium tracking-wider uppercase text-zinc-500 mb-2">Time range</div>
+          <div className="flex bg-zinc-950 rounded-lg p-0.5 border border-zinc-800">
+            {(['1w', '3m', '6m', '1y', 'all'] as TimeRange[]).map(r => (
+              <button
+                key={r}
+                onClick={() => onRangeChange(r)}
+                className={`flex-1 px-3 py-1.5 text-xs rounded-md transition-colors ${
+                  range === r ? 'bg-green-500/15 text-green-400 ring-1 ring-green-500/25' : 'text-zinc-400 hover:text-zinc-200'
+                }`}
+              >
+                {r.toUpperCase()}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
