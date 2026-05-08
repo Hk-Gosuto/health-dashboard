@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from 'react'
 import { TabHeader } from './ui'
-import type { DailyMetrics, Workout, GpxPoint } from './types'
+import type { DailyMetrics, Workout, GpxPoint, HevySet, HevyExercise } from './types'
 
 interface ParsedRoute {
   filename: string
@@ -365,6 +365,85 @@ export default function PersonalRecords({ metrics, workouts, gpxFiles }: Props) 
         sub: 'exercise ring in one day',
         date: best.date,
         icon: '🎯', color: '#22c55e',
+      })
+    }
+
+    // === Strength PRs (from Hevy data attached to workouts) ===
+
+    type FlatSet = { set: HevySet; exercise: HevyExercise; sessionDate: string; sessionStart: string }
+    const flat: FlatSet[] = []
+    for (const w of workouts) {
+      if (!w.hevy) continue
+      for (const ex of w.hevy.exercises) {
+        for (const s of ex.sets) {
+          if (s.type === 'warmup') continue
+          if (s.weightKg == null || s.reps == null) continue
+          flat.push({ set: s, exercise: ex, sessionDate: w.date, sessionStart: w.hevy.startDate })
+        }
+      }
+    }
+
+    if (flat.length > 0) {
+      // Heaviest Set (overall)
+      const heaviest = flat.reduce((a, b) => (a.set.weightKg! > b.set.weightKg! ? a : b))
+      prs.push({
+        label: 'Heaviest Set',
+        value: `${heaviest.set.weightKg}kg × ${heaviest.set.reps}`,
+        sub: heaviest.exercise.title,
+        date: heaviest.sessionDate,
+        icon: '🏋️', color: '#a855f7',
+      })
+
+      // Best e1RM (Epley formula)
+      const beste1rm = flat.reduce((a, b) => {
+        const e1rmA = a.set.weightKg! * (1 + a.set.reps! / 30)
+        const e1rmB = b.set.weightKg! * (1 + b.set.reps! / 30)
+        return e1rmA > e1rmB ? a : b
+      })
+      const e1rm = beste1rm.set.weightKg! * (1 + beste1rm.set.reps! / 30)
+      prs.push({
+        label: 'Best e1RM',
+        value: `${e1rm.toFixed(1)} kg`,
+        sub: `${beste1rm.exercise.title} · ${beste1rm.set.weightKg}kg × ${beste1rm.set.reps}`,
+        date: beste1rm.sessionDate,
+        icon: '🥇', color: '#facc15',
+      })
+    }
+
+    // Hevy session-level PRs
+    const hevySessions = workouts.filter(w => w.hevy).map(w => w.hevy!)
+    if (hevySessions.length > 0) {
+      // Most Volume (Single Session)
+      const bestVol = hevySessions.reduce((a, b) => (a.totalVolumeKg > b.totalVolumeKg ? a : b))
+      const volWorkout = workouts.find(w => w.hevy?.id === bestVol.id)
+      prs.push({
+        label: 'Most Volume (Session)',
+        value: `${Math.round(bestVol.totalVolumeKg).toLocaleString()} kg`,
+        sub: `${bestVol.title} · ${bestVol.totalSets} sets`,
+        date: volWorkout?.date ?? bestVol.startDate.substring(0, 10),
+        icon: '💥', color: '#ef4444',
+      })
+
+      // Longest Strength Session
+      const bestDur = hevySessions.reduce((a, b) => (a.durationMin > b.durationMin ? a : b))
+      const durWorkout = workouts.find(w => w.hevy?.id === bestDur.id)
+      prs.push({
+        label: 'Longest Strength Session',
+        value: `${Math.round(bestDur.durationMin)} min`,
+        sub: bestDur.title,
+        date: durWorkout?.date ?? bestDur.startDate.substring(0, 10),
+        icon: '⏱', color: '#3b82f6',
+      })
+
+      // Most Sets in a Session
+      const bestSets = hevySessions.reduce((a, b) => (a.totalSets > b.totalSets ? a : b))
+      const setsWorkout = workouts.find(w => w.hevy?.id === bestSets.id)
+      prs.push({
+        label: 'Most Sets (Session)',
+        value: `${bestSets.totalSets}`,
+        sub: bestSets.title,
+        date: setsWorkout?.date ?? bestSets.startDate.substring(0, 10),
+        icon: '📊', color: '#22c55e',
       })
     }
 

@@ -34,10 +34,11 @@ const GarminTraining = lazy(() => import('./GarminTraining'))
 const Mobility = lazy(() => import('./Mobility'))
 const RunningDynamics = lazy(() => import('./RunningDynamics'))
 const TrainingLoad = lazy(() => import('./TrainingLoad'))
+const Strength = lazy(() => import('./Strength'))
 
 type TimeRange = '1w' | '3m' | '6m' | '1y' | 'all'
 type Granularity = 'daily' | 'weekly' | 'monthly'
-type Tab = 'overview' | 'score' | 'anomalies' | 'insights' | 'records' | 'yearly' | 'calendar' | 'cardio' | 'body' | 'sleep' | 'menstrual' | 'daylight' | 'audio' | 'correlations' | 'trainings' | 'compare' | 'heatmap' | 'garmin-training' | 'mobility' | 'running' | 'load'
+type Tab = 'overview' | 'score' | 'anomalies' | 'insights' | 'records' | 'yearly' | 'calendar' | 'cardio' | 'body' | 'sleep' | 'menstrual' | 'daylight' | 'audio' | 'correlations' | 'trainings' | 'compare' | 'heatmap' | 'garmin-training' | 'mobility' | 'running' | 'load' | 'strength'
 
 const Loading = <TabSkeleton />
 
@@ -49,7 +50,7 @@ const GROUP_LABELS: Record<number, string> = {
   5: 'Routes',
 }
 
-const VALID_TABS = new Set<Tab>(['overview', 'score', 'anomalies', 'insights', 'records', 'yearly', 'calendar', 'cardio', 'body', 'sleep', 'menstrual', 'daylight', 'audio', 'correlations', 'trainings', 'compare', 'heatmap', 'garmin-training', 'mobility', 'running', 'load'])
+const VALID_TABS = new Set<Tab>(['overview', 'score', 'anomalies', 'insights', 'records', 'yearly', 'calendar', 'cardio', 'body', 'sleep', 'menstrual', 'daylight', 'audio', 'correlations', 'trainings', 'compare', 'heatmap', 'garmin-training', 'mobility', 'running', 'load', 'strength'])
 const VALID_RANGES = new Set<TimeRange>(['1w', '3m', '6m', '1y', 'all'])
 const VALID_GRANULARITIES = new Set<Granularity>(['daily', 'weekly', 'monthly'])
 
@@ -309,6 +310,7 @@ export default function Dashboard({ data, onReset }: { data: HealthData; onReset
     { key: 'mobility', label: 'Mobility', icon: <Footprints size={16} />, show: hasMobility, group: 3 },
     { key: 'running', label: 'Running', icon: <Zap size={16} />, show: hasRunning, group: 3 },
     { key: 'load', label: 'Training Load', icon: <TrendingUp size={16} />, show: data.workouts.length >= 7, group: 4 },
+    { key: 'strength', label: 'Strength', icon: <Dumbbell size={16} />, show: true, group: 5 },
     { key: 'correlations', label: 'Correlations', icon: <GitCompareArrows size={16} />, show: true, group: 4 },
     { key: 'trainings', label: 'Trainings', icon: <Dumbbell size={16} />, show: hasGpx, group: 5 },
     { key: 'compare', label: 'Compare', icon: <Route size={16} />, show: hasGpx, group: 5 },
@@ -574,6 +576,12 @@ export default function Dashboard({ data, onReset }: { data: HealthData; onReset
         ) : (
           <EmptyState icon={<TrendingUp size={28} />} title="Not enough workout data" hint="Training load needs at least 7 workouts to compute acute-to-chronic ratios. Log a few more and try again." />
         ))}
+
+        {tab === 'strength' && (
+          <Suspense fallback={Loading}>
+            <Strength data={data} />
+          </Suspense>
+        )}
 
         {tab === 'correlations' && (
           <Suspense fallback={Loading}>

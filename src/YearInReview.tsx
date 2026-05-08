@@ -16,6 +16,10 @@ interface YearStats {
   workoutMinutes: number
   workoutCalories: number
   daysTracked: number
+  strengthSessions: number
+  tonnageKg: number
+  strengthSets: number
+  strengthMinutes: number
 }
 
 function avg(arr: number[]): number | null {
@@ -83,6 +87,10 @@ export default function YearInReview({ metrics, workouts }: Props) {
         workoutMinutes: yw.reduce((s, w) => s + w.duration, 0),
         workoutCalories: yw.reduce((s, w) => s + w.calories, 0),
         daysTracked: days.length,
+        strengthSessions: yw.reduce((s, w) => s + (w.hevy ? 1 : 0), 0),
+        tonnageKg: yw.reduce((s, w) => s + (w.hevy ? w.hevy.totalVolumeKg : 0), 0),
+        strengthSets: yw.reduce((s, w) => s + (w.hevy ? w.hevy.totalSets : 0), 0),
+        strengthMinutes: yw.reduce((s, w) => s + (w.hevy ? w.hevy.durationMin : 0), 0),
       })
     }
 
@@ -112,6 +120,10 @@ export default function YearInReview({ metrics, workouts }: Props) {
     { label: 'Workouts', key: 'workoutCount', format: v => fmt(v), unit: '', higherIsGood: true },
     { label: 'Workout Time', key: 'workoutMinutes', format: v => v !== null ? `${Math.round(v / 60)}` : '--', unit: 'hrs', higherIsGood: true },
     { label: 'Workout Calories', key: 'workoutCalories', format: v => fmt(v), unit: 'kcal', higherIsGood: true },
+    { label: 'Strength Sessions', key: 'strengthSessions', format: v => fmt(v), unit: '', higherIsGood: true },
+    { label: 'Total Tonnage', key: 'tonnageKg', format: v => fmt(v), unit: 'kg', higherIsGood: true },
+    { label: 'Strength Sets', key: 'strengthSets', format: v => fmt(v), unit: '', higherIsGood: true },
+    { label: 'Strength Time', key: 'strengthMinutes', format: v => v !== null ? `${Math.round(v / 60)}` : '--', unit: 'hrs', higherIsGood: true },
   ]
 
   return (
