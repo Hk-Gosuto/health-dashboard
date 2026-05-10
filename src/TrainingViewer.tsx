@@ -1,17 +1,17 @@
 import { useState, useEffect, useMemo, useRef } from 'react'
 import { MapContainer, TileLayer, Polyline, useMap } from 'react-leaflet'
 import {
-  ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid,
+  ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid, ReferenceArea,
 } from 'recharts'
-import type { GpxRoute, GpxPoint, Workout, HRSample } from './types'
+import type { GpxRoute, GpxPoint, HRSample, HealthData } from './types'
 import 'leaflet/dist/leaflet.css'
 import { StatBox, AISummaryButton, TabHeader, useChartTheme, ChartTooltip } from './ui'
+import StrengthOverview, { SessionDetail, bestE1RMForExercise, ageFromDob } from './Strength'
+import type { HevyWorkout } from './types'
 
 interface Props {
-  workouts: Workout[]
-  gpxFiles: Map<string, File>
-  hrTimeline: HRSample[]
-  dob: string
+  data: HealthData
+  hevy: HevyWorkout[] | null
 }
 
 // Binary search for index of first sample >= target time
@@ -208,49 +208,90 @@ function RouteDetail({ route }: { route: GpxRoute }) {
 
 const ZONE_COLORS = ['#71717a', '#3b82f6', '#22c55e', '#f97316', '#ef4444']
 const ZONE_NAMES = ['Rest (<50%)', 'Fat Burn (50-60%)', 'Cardio (60-70%)', 'Tempo (70-85%)', 'Peak (85%+)']
+// Lower bound of each zone as a fraction of maxHR; upper bound = next entry (or Infinity for Peak).
+const ZONE_LOWER = [0, 0.5, 0.6, 0.7, 0.85]
 
-function HRZones({ hrData, maxHR }: { hrData: { min: number; bpm: number }[]; maxHR: number }) {
-  const zones = [0, 0, 0, 0, 0] // time in each zone (count of samples)
+function HRSessionChart({
+  hrData, maxHR, ct,
+}: {
+  hrData: { min: number; bpm: number }[]
+  maxHR: number
+  ct: ReturnType<typeof useChartTheme>
+}) {
+  // Time-in-zone percentages for the legend below the chart.
+  const zonePcts = useMemo(() => {
+    const counts = [0, 0, 0, 0, 0]
+    for (const d of hrData) {
+      const pct = d.bpm / maxHR
+      if (pct < 0.5) counts[0]++
+      else if (pct < 0.6) counts[1]++
+      else if (pct < 0.7) counts[2]++
+      else if (pct < 0.85) counts[3]++
+      else counts[4]++
+    }
+    const total = counts.reduce((a, b) => a + b, 0) || 1
+    return counts.map(c => Math.round((c / total) * 100))
+  }, [hrData, maxHR])
 
-  for (const d of hrData) {
-    const pct = d.bpm / maxHR
-    if (pct < 0.5) zones[0]++
-    else if (pct < 0.6) zones[1]++
-    else if (pct < 0.7) zones[2]++
-    else if (pct < 0.85) zones[3]++
-    else zones[4]++
-  }
+  // Y-axis range: pad below the lowest sample so the Rest band is visible
+  // and just above the highest so the Peak band is too. Recharts' 'auto'
+  // would otherwise clip ReferenceArea's y1/y2 to the data extent.
+  const { yMin, yMax } = useMemo(() => {
+    let lo = Infinity, hi = -Infinity
+    for (const d of hrData) {
+      if (d.bpm < lo) lo = d.bpm
+      if (d.bpm > hi) hi = d.bpm
+    }
+    return { yMin: Math.floor(lo - 5), yMax: Math.ceil(hi + 5) }
+  }, [hrData])
 
-  const total = zones.reduce((a, b) => a + b, 0)
-  if (total === 0) return null
+  // Convert zone fractions → bpm bounds, clipped to chart Y range.
+  const bands = ZONE_LOWER.map((lower, i) => {
+    const upper = i < ZONE_LOWER.length - 1 ? ZONE_LOWER[i + 1] : Infinity
+    const y1 = Math.max(yMin, lower * maxHR)
+    const y2 = upper === Infinity ? yMax : Math.min(yMax, upper * maxHR)
+    return { y1, y2, color: ZONE_COLORS[i] }
+  }).filter(b => b.y2 > b.y1)
 
   return (
-    <div className="space-y-2">
-      {/* Stacked bar */}
-      <div className="flex h-6 rounded-lg overflow-hidden">
-        {zones.map((count, i) => {
-          const pct = (count / total) * 100
-          if (pct < 1) return null
-          return (
-            <div
-              key={i}
-              style={{ width: `${pct}%`, background: ZONE_COLORS[i] }}
-              className="transition-all"
-            />
-          )
-        })}
+    <div className="bg-zinc-900 rounded-xl border border-zinc-800 p-4">
+      <div className="flex items-start justify-between mb-1">
+        <h4 className="text-sm font-medium text-zinc-300">Heart Rate During Session</h4>
+        <AISummaryButton title="Heart Rate During Session" description="Heart rate over the workout duration" chartData={hrData} />
       </div>
-      {/* Labels */}
-      <div className="grid grid-cols-5 gap-2">
-        {zones.map((count, i) => {
-          const pct = Math.round((count / total) * 100)
-          return (
-            <div key={i} className="text-center">
-              <div className="text-xs font-medium" style={{ color: ZONE_COLORS[i] }}>{pct}%</div>
-              <div className="text-[10px] text-zinc-500">{ZONE_NAMES[i]}</div>
-            </div>
-          )
-        })}
+      <div className="h-56">
+        <ResponsiveContainer width="100%" height="100%" minWidth={0} debounce={1}>
+          <AreaChart margin={{ top: 5, right: 5, bottom: 0, left: -15 }} data={hrData}>
+            <CartesianGrid strokeDasharray="3 3" stroke={ct.grid} />
+            <XAxis
+              dataKey="min"
+              tick={{ fontSize: 10, fill: ct.tick }}
+              tickFormatter={v => `${Math.floor(v as number)}m`}
+            />
+            <YAxis domain={[yMin, yMax]} tick={{ fontSize: 10, fill: ct.tick }} />
+            {bands.map((b, i) => (
+              <ReferenceArea
+                key={i}
+                y1={b.y1}
+                y2={b.y2}
+                fill={b.color}
+                fillOpacity={0.08}
+                strokeOpacity={0}
+                ifOverflow="hidden"
+              />
+            ))}
+            <Tooltip content={<ChartTooltip formatter={(v) => [`${v} bpm`, 'Heart Rate']} />} />
+            <Area type="monotone" dataKey="bpm" stroke="#ef4444" fill="none" strokeWidth={1.5} dot={false} />
+          </AreaChart>
+        </ResponsiveContainer>
+      </div>
+      <div className="grid grid-cols-5 gap-2 mt-2">
+        {zonePcts.map((pct, i) => (
+          <div key={i} className="text-center">
+            <div className="text-xs font-medium tabular-nums" style={{ color: ZONE_COLORS[i] }}>{pct}%</div>
+            <div className="text-[10px] text-zinc-500">{ZONE_NAMES[i]}</div>
+          </div>
+        ))}
       </div>
     </div>
   )
@@ -319,7 +360,9 @@ function KmSplits({ route }: { route: GpxRoute }) {
   )
 }
 
-export default function TrainingViewer({ workouts, gpxFiles, hrTimeline, dob }: Props) {
+export default function TrainingViewer({ data, hevy }: Props) {
+  const { workouts, gpxFiles, hrTimeline, profile } = data
+  const dob = profile.dob
   const ct = useChartTheme()
   const [routes, setRoutes] = useState<GpxRoute[]>([])
   const [selectedIdx, setSelectedIdx] = useState<number>(0)
@@ -327,11 +370,22 @@ export default function TrainingViewer({ workouts, gpxFiles, hrTimeline, dob }: 
   const [filter, setFilter] = useState<string>('all')
   const parsedRef = useRef(false)
 
-  const estimatedMaxHR = useMemo(() => {
-    if (!dob) return 190
-    const age = new Date().getFullYear() - new Date(dob).getFullYear()
-    return 220 - age
-  }, [dob])
+  const estimatedMaxHR = useMemo(() => 220 - ageFromDob(dob), [dob])
+
+  // Per-exercise history (chronological) for PR detection in SessionDetail.
+  const exerciseHistory = useMemo(() => {
+    const map = new Map<string, { sessionId: string; sessionStart: string; e1rm: number; volume: number }[]>()
+    if (!hevy) return map
+    const sorted = [...hevy].sort((a, b) => +new Date(a.startDate) - +new Date(b.startDate))
+    for (const h of sorted) {
+      for (const ex of h.exercises) {
+        const arr = map.get(ex.title) ?? []
+        arr.push({ sessionId: h.id, sessionStart: h.startDate, e1rm: bestE1RMForExercise(ex), volume: ex.volumeKg })
+        map.set(ex.title, arr)
+      }
+    }
+    return map
+  }, [hevy])
 
   useEffect(() => {
     if (parsedRef.current) return
@@ -415,7 +469,14 @@ export default function TrainingViewer({ workouts, gpxFiles, hrTimeline, dob }: 
 
   return (
     <>
-      <TabHeader title="Trainings" description="Detailed workout sessions with GPS routes, heart rate, pace, and elevation data." />
+      <TabHeader title="Trainings" description="Detailed workout sessions with GPS routes, heart rate, and — when matched against Hevy — full strength training detail (exercises, sets, reps, RPE)." />
+
+      {hevy && hevy.length > 0 && (
+        <div className="mb-6 space-y-4">
+          <StrengthOverview data={data} hevy={hevy} />
+        </div>
+      )}
+
       <div className="grid grid-cols-1 lg:grid-cols-[350px_1fr] gap-3">
       {/* Left panel: workout list */}
       <div className="bg-zinc-900 rounded-xl border border-zinc-800 overflow-hidden">
@@ -458,6 +519,7 @@ export default function TrainingViewer({ workouts, gpxFiles, hrTimeline, dob }: 
                 <div className="flex items-center justify-between">
                   <span className="text-sm font-medium text-zinc-200">{w.type}</span>
                   <div className="flex items-center gap-1.5">
+                    {w.hevy && <span className="text-[10px] text-green-400 bg-green-500/10 ring-1 ring-green-500/25 px-1.5 py-0.5 rounded">Hevy</span>}
                     {hasRoute && <span className="text-[10px] text-blue-400 bg-blue-400/10 px-1.5 py-0.5 rounded">GPS</span>}
                     <span className="text-xs text-zinc-500">{formatDate(w.date)}</span>
                   </div>
@@ -497,55 +559,36 @@ export default function TrainingViewer({ workouts, gpxFiles, hrTimeline, dob }: 
               {selected.weather && <StatBox label="Weather" value={selected.weather} />}
             </div>
 
-            {/* Heart rate during session */}
+            {/* Heart rate during session, with HR-zone bands overlaid */}
             {workoutHR.length > 2 && (
-              <div className="bg-zinc-900 rounded-xl border border-zinc-800 p-4">
-                <div className="flex items-start justify-between mb-1">
-                  <div>
-                    <h4 className="text-sm font-medium text-zinc-300">Heart Rate During Session</h4>
-                  </div>
-                  <AISummaryButton title="Heart Rate During Session" description="Heart rate over the workout duration" chartData={workoutHR} />
-                </div>
-                <div className="h-56">
-                  <ResponsiveContainer width="100%" height="100%" minWidth={0} debounce={1}>
-                    <AreaChart margin={{ top: 5, right: 5, bottom: 0, left: -15 }} data={workoutHR}>
-                      <defs>
-                        <linearGradient id="sessionHrGrad" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#ef4444" stopOpacity={0.4} />
-                          <stop offset="95%" stopColor="#ef4444" stopOpacity={0} />
-                        </linearGradient>
-                      </defs>
-                      <CartesianGrid strokeDasharray="3 3" stroke={ct.grid} />
-                      <XAxis
-                        dataKey="min"
-                        tick={{ fontSize: 10, fill: ct.tick }}
-                        tickFormatter={v => `${Math.floor(v as number)}m`}
-                      />
-                      <YAxis domain={['auto', 'auto']} tick={{ fontSize: 10, fill: ct.tick }} />
-                      <Tooltip content={<ChartTooltip formatter={(v) => [`${v} bpm`, 'Heart Rate']} />} />
-                      <Area type="monotone" dataKey="bpm" stroke="#ef4444" fill="url(#sessionHrGrad)" strokeWidth={1.5} dot={false} />
-                    </AreaChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
+              <HRSessionChart hrData={workoutHR} maxHR={estimatedMaxHR} ct={ct} />
             )}
 
             {/* Route detail if GPS available */}
             {selectedRoute && <RouteDetail route={selectedRoute} />}
-
-            {/* HR Zones */}
-            {workoutHR.length > 5 && (
-              <div className="bg-zinc-900 rounded-xl border border-zinc-800 p-4">
-                <h4 className="text-sm font-medium text-zinc-300 mb-3">Heart Rate Zones</h4>
-                <HRZones hrData={workoutHR} maxHR={estimatedMaxHR} />
-              </div>
-            )}
 
             {/* Km Splits for GPS workouts */}
             {selectedRoute && selectedRoute.totalDistance >= 1 && (
               <div className="bg-zinc-900 rounded-xl border border-zinc-800 p-4">
                 <h4 className="text-sm font-medium text-zinc-300 mb-3">Kilometer Splits</h4>
                 <KmSplits route={selectedRoute} />
+              </div>
+            )}
+
+            {/* Hevy strength detail when this workout is matched to a Hevy session */}
+            {selected.hevy && (
+              <div className="bg-zinc-900 rounded-xl border border-zinc-800 overflow-hidden">
+                <div className="px-4 py-3 border-b border-zinc-800/60 flex items-center justify-between">
+                  <h4 className="text-sm font-medium text-zinc-300">Strength Detail · {selected.hevy.title}</h4>
+                  <span className="text-[10px] text-green-400 bg-green-500/10 ring-1 ring-green-500/25 px-1.5 py-0.5 rounded uppercase tracking-wider">Hevy</span>
+                </div>
+                <SessionDetail
+                  entry={{ hevy: selected.hevy, apple: selected }}
+                  exerciseHistory={exerciseHistory}
+                  hrTimeline={hrTimeline}
+                  maxHR={estimatedMaxHR}
+                  ct={ct}
+                />
               </div>
             )}
           </div>

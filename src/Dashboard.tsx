@@ -13,6 +13,7 @@ import {
 import { computeTrends, computeExtraTrends, groupedAverage, workoutSummary, monthlyWorkouts } from './analysis'
 import type { ExtraTrendInput } from './analysis'
 import { COLORS, chartMargin, StatBox, ChartCard, SectionHeader, TabHeader, ChartTooltip, shortDateCompact, shortMonth, fmt, humanizeWorkoutType, useChartTheme, TabSkeleton, EmptyState } from './ui'
+import { useHevy } from './useHevy'
 
 const TrainingViewer = lazy(() => import('./TrainingViewer'))
 const SleepAnalysis = lazy(() => import('./SleepAnalysis'))
@@ -34,11 +35,10 @@ const GarminTraining = lazy(() => import('./GarminTraining'))
 const Mobility = lazy(() => import('./Mobility'))
 const RunningDynamics = lazy(() => import('./RunningDynamics'))
 const TrainingLoad = lazy(() => import('./TrainingLoad'))
-const Strength = lazy(() => import('./Strength'))
 
 type TimeRange = '1w' | '3m' | '6m' | '1y' | 'all'
 type Granularity = 'daily' | 'weekly' | 'monthly'
-type Tab = 'overview' | 'score' | 'anomalies' | 'insights' | 'records' | 'yearly' | 'calendar' | 'cardio' | 'body' | 'sleep' | 'menstrual' | 'daylight' | 'audio' | 'correlations' | 'trainings' | 'compare' | 'heatmap' | 'garmin-training' | 'mobility' | 'running' | 'load' | 'strength'
+type Tab = 'overview' | 'score' | 'anomalies' | 'insights' | 'records' | 'yearly' | 'calendar' | 'cardio' | 'body' | 'sleep' | 'menstrual' | 'daylight' | 'audio' | 'correlations' | 'trainings' | 'compare' | 'heatmap' | 'garmin-training' | 'mobility' | 'running' | 'load'
 
 const Loading = <TabSkeleton />
 
@@ -50,7 +50,7 @@ const GROUP_LABELS: Record<number, string> = {
   5: 'Routes',
 }
 
-const VALID_TABS = new Set<Tab>(['overview', 'score', 'anomalies', 'insights', 'records', 'yearly', 'calendar', 'cardio', 'body', 'sleep', 'menstrual', 'daylight', 'audio', 'correlations', 'trainings', 'compare', 'heatmap', 'garmin-training', 'mobility', 'running', 'load', 'strength'])
+const VALID_TABS = new Set<Tab>(['overview', 'score', 'anomalies', 'insights', 'records', 'yearly', 'calendar', 'cardio', 'body', 'sleep', 'menstrual', 'daylight', 'audio', 'correlations', 'trainings', 'compare', 'heatmap', 'garmin-training', 'mobility', 'running', 'load'])
 const VALID_RANGES = new Set<TimeRange>(['1w', '3m', '6m', '1y', 'all'])
 const VALID_GRANULARITIES = new Set<Granularity>(['daily', 'weekly', 'monthly'])
 
@@ -95,6 +95,10 @@ export default function Dashboard({ data, onReset }: { data: HealthData; onReset
   const [tab, setTab] = useState<Tab>(initial.tab ?? 'overview')
   const [theme, setTheme] = useTheme()
   const ct = useChartTheme()
+
+  // Hevy integration: env-only key, applies matches to data.workouts so other
+  // tabs (Records, YearInReview) see linked strength sessions immediately.
+  const { hevy: hevyData } = useHevy(data.workouts)
 
   // Sync state → URL hash
   useEffect(() => {
@@ -310,9 +314,8 @@ export default function Dashboard({ data, onReset }: { data: HealthData; onReset
     { key: 'mobility', label: 'Mobility', icon: <Footprints size={16} />, show: hasMobility, group: 3 },
     { key: 'running', label: 'Running', icon: <Zap size={16} />, show: hasRunning, group: 3 },
     { key: 'load', label: 'Training Load', icon: <TrendingUp size={16} />, show: data.workouts.length >= 7, group: 4 },
-    { key: 'strength', label: 'Strength', icon: <Dumbbell size={16} />, show: true, group: 5 },
     { key: 'correlations', label: 'Correlations', icon: <GitCompareArrows size={16} />, show: true, group: 4 },
-    { key: 'trainings', label: 'Trainings', icon: <Dumbbell size={16} />, show: hasGpx, group: 5 },
+    { key: 'trainings', label: 'Trainings', icon: <Dumbbell size={16} />, show: data.workouts.length > 0, group: 5 },
     { key: 'compare', label: 'Compare', icon: <Route size={16} />, show: hasGpx, group: 5 },
     { key: 'heatmap', label: 'Heatmap', icon: <Map size={16} />, show: hasGpx, group: 5 },
     { key: 'garmin-training', label: 'Training', icon: <Activity size={16} />, show: hasGarmin, group: 3 },
@@ -577,24 +580,18 @@ export default function Dashboard({ data, onReset }: { data: HealthData; onReset
           <EmptyState icon={<TrendingUp size={28} />} title="Not enough workout data" hint="Training load needs at least 7 workouts to compute acute-to-chronic ratios. Log a few more and try again." />
         ))}
 
-        {tab === 'strength' && (
-          <Suspense fallback={Loading}>
-            <Strength data={data} />
-          </Suspense>
-        )}
-
         {tab === 'correlations' && (
           <Suspense fallback={Loading}>
             <Correlations metrics={allMetrics} sleepRecords={data.sleepRecords} caffeineRecords={data.caffeineRecords} dailyBreathing={data.dailyBreathing} cardioRecords={data.cardioRecords} dailyDaylight={data.dailyDaylight} />
           </Suspense>
         )}
 
-        {tab === 'trainings' && (hasGpx ? (
+        {tab === 'trainings' && (data.workouts.length > 0 ? (
           <Suspense fallback={Loading}>
-            <TrainingViewer workouts={data.workouts} gpxFiles={data.gpxFiles} hrTimeline={data.hrTimeline} dob={data.profile.dob} />
+            <TrainingViewer data={data} hevy={hevyData} />
           </Suspense>
         ) : (
-          <EmptyState icon={<Dumbbell size={28} />} title="No GPX routes found" hint="Drag the export folder that includes your workout-routes/*.gpx files to see trainings on a map." />
+          <EmptyState icon={<Dumbbell size={28} />} title="No workouts found" hint="No workout sessions were found in this import." />
         ))}
 
         {tab === 'compare' && (hasGpx ? (
