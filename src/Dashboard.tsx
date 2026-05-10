@@ -13,6 +13,7 @@ import {
 import { groupedAverage, workoutSummary, monthlyWorkouts } from './analysis'
 import { COLORS, chartMargin, StatBox, ChartCard, SectionHeader, SubsectionHeader, TabHeader, ChartTooltip, shortDateCompact, fmt, humanizeWorkoutType, useChartTheme, TabSkeleton, EmptyState } from './ui'
 import TopNav, { type NavGroup } from './components/TopNav'
+import { useHevy } from './useHevy'
 
 const TrainingViewer = lazy(() => import('./TrainingViewer'))
 const SleepAnalysis = lazy(() => import('./SleepAnalysis'))
@@ -91,6 +92,10 @@ export default function Dashboard({ data, onReset }: { data: HealthData; onReset
   const [tab, setTab] = useState<Tab>(initial.tab ?? 'overview')
   const [theme, setTheme] = useTheme()
   const ct = useChartTheme()
+
+  // Hevy integration: env-only key, applies matches to data.workouts so other
+  // tabs (Records, YearInReview) see linked strength sessions immediately.
+  const { hevy: hevyData } = useHevy(data.workouts)
 
   // Sync state → URL hash
   useEffect(() => {
@@ -381,7 +386,7 @@ export default function Dashboard({ data, onReset }: { data: HealthData; onReset
 
         {tab === 'trainings' && (data.workouts.length > 0 ? (
           <div className="space-y-6">
-            <TabHeader title="Trainings" description="Workout type breakdown plus per-session detail with GPS routes, heart rate, pace, and elevation." />
+            <TabHeader title="Trainings" description="Workout type breakdown plus per-session detail with GPS routes, heart rate, pace, elevation, and — when matched against Hevy — full strength training detail (exercises, sets, reps, RPE)." />
             {topWorkouts.length > 0 && (
               <div className="space-y-3">
                 <SectionHeader>Types</SectionHeader>
@@ -401,15 +406,9 @@ export default function Dashboard({ data, onReset }: { data: HealthData; onReset
             )}
             <div className="space-y-3">
               <SectionHeader>Detail</SectionHeader>
-              {hasGpx ? (
-                <Suspense fallback={Loading}>
-                  <TrainingViewer workouts={data.workouts} gpxFiles={data.gpxFiles} hrTimeline={data.hrTimeline} dob={data.profile.dob} />
-                </Suspense>
-              ) : (
-                <div className="bg-zinc-900 rounded-xl border border-zinc-800 p-6 text-center text-xs text-zinc-500">
-                  No GPX routes in this import. Drop a folder with <code className="text-zinc-400">workout-routes/*.gpx</code> to see route maps.
-                </div>
-              )}
+              <Suspense fallback={Loading}>
+                <TrainingViewer data={data} hevy={hevyData} />
+              </Suspense>
             </div>
           </div>
         ) : (

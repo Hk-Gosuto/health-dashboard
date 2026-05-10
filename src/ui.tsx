@@ -75,15 +75,15 @@ interface TooltipPayloadItem {
 export function ChartTooltip({ active, payload, label, formatter }: {
   active?: boolean
   payload?: TooltipPayloadItem[]
-  label?: string
+  label?: string | number
   formatter?: (value: number, name: string) => [string, string]
 }) {
   if (!active || !payload || payload.length === 0) return null
   const dark = isDarkMode()
 
-  // Format the date label nicely
-  let dateLabel = label || ''
-  if (dateLabel && dateLabel.match(/^\d{4}-\d{2}/)) {
+  // Format the date label nicely. Recharts may hand us a number for numeric XAxis charts.
+  let dateLabel = label == null ? '' : String(label)
+  if (dateLabel && /^\d{4}-\d{2}/.test(dateLabel)) {
     const parts = dateLabel.split('-')
     const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
     dateLabel = parts[2]

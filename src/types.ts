@@ -29,6 +29,51 @@ export interface Workout {
   avgMETs: number | null
   weather: string | null // temperature
   elevationAscended: number | null // meters
+  hevy?: HevyWorkout // populated when matched to a Hevy session
+}
+
+export interface HevySet {
+  index: number
+  type: 'normal' | 'warmup' | 'dropset' | 'failure' | string
+  weightKg: number | null
+  reps: number | null
+  distanceM: number | null
+  durationSec: number | null
+  rpe: number | null
+}
+
+export interface HevyExercise {
+  index: number
+  title: string
+  templateId: string
+  notes: string
+  supersetId: number | null
+  sets: HevySet[]
+  volumeKg: number // Σ weightKg * reps for normal/failure sets
+  primaryMuscleGroup?: string | null // resolved from /exercise_templates
+}
+
+export interface HevyExerciseTemplate {
+  id: string
+  title: string
+  type: string
+  primaryMuscleGroup: string | null
+  secondaryMuscleGroups: string[]
+  equipment: string | null
+  isCustom: boolean
+}
+
+export interface HevyWorkout {
+  id: string
+  title: string
+  description: string
+  startDate: string // ISO
+  endDate: string // ISO
+  exercises: HevyExercise[]
+  totalVolumeKg: number
+  totalSets: number
+  totalReps: number
+  durationMin: number
 }
 
 export interface SleepRecord {
@@ -237,6 +282,7 @@ export interface HealthData {
   exportDate: string
   sourceMode?: 'apple' | 'garmin'
   garminMetrics?: GarminMetrics
+  hevyWorkouts?: HevyWorkout[] // unmatched Hevy sessions
 }
 
 export interface ParseProgress {
