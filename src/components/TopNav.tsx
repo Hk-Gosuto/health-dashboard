@@ -132,7 +132,7 @@ export default function TopNav({
                   onClick={() => handleSelect(sub.key)}
                   className={`relative h-full flex items-center gap-1.5 px-3 text-[13px] transition-colors duration-150 ${
                     active
-                      ? "text-green-400 before:content-[''] before:absolute before:left-2 before:right-2 before:bottom-0 before:h-[2px] before:bg-green-500 before:rounded-t"
+                      ? "text-[#0099FF] before:content-[''] before:absolute before:left-2 before:right-2 before:bottom-0 before:h-[2px] before:bg-[#0099FF] before:rounded-t"
                       : 'text-zinc-500 hover:text-zinc-200'
                   }`}
                 >
@@ -152,7 +152,7 @@ export default function TopNav({
                   aria-haspopup="menu"
                   className={`relative h-full flex items-center gap-1.5 px-3 text-[13px] transition-colors duration-150 ${
                     active
-                      ? "text-green-400 before:content-[''] before:absolute before:left-2 before:right-2 before:bottom-0 before:h-[2px] before:bg-green-500 before:rounded-t"
+                      ? "text-[#0099FF] before:content-[''] before:absolute before:left-2 before:right-2 before:bottom-0 before:h-[2px] before:bg-[#0099FF] before:rounded-t"
                       : 'text-zinc-500 hover:text-zinc-200'
                   }`}
                 >
@@ -189,7 +189,7 @@ export default function TopNav({
                           {sub.icon && (
                             <span
                               className={`shrink-0 ${
-                                subActive ? 'text-green-400' : ''
+                                subActive ? 'text-[#0099FF]' : ''
                               }`}
                             >
                               {sub.icon}
@@ -218,7 +218,7 @@ export default function TopNav({
           <div className="flex items-center gap-1.5 min-w-0">
             {activeGroup && (
               <>
-                <span className="shrink-0 text-green-400">
+                <span className="shrink-0 text-[#0099FF]">
                   {activeGroup.icon ?? DEFAULT_GROUP_ICONS[activeGroup.key]}
                 </span>
                 <span className="text-[13px] text-zinc-100 truncate">
@@ -300,7 +300,7 @@ export default function TopNav({
                     >
                       <span
                         className={`shrink-0 ${
-                          active ? 'text-green-400' : ''
+                          active ? 'text-[#0099FF]' : ''
                         }`}
                       >
                         {groupIcon}
@@ -334,7 +334,7 @@ export default function TopNav({
                             {sub.icon && (
                               <span
                                 className={`shrink-0 ${
-                                  subActive ? 'text-green-400' : ''
+                                  subActive ? 'text-[#0099FF]' : ''
                                 }`}
                               >
                                 {sub.icon}

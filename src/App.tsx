@@ -461,7 +461,7 @@ export default function App() {
                 <ProgressBar value={pct} />
               ) : (
                 <div className="w-full h-1 bg-zinc-800 rounded-full overflow-hidden">
-                  <div className="h-full w-1/3 bg-green-500 rounded-full animate-pulse" />
+                  <div className="h-full w-1/3 bg-[#0099FF] rounded-full animate-pulse" />
                 </div>
               )}
               <div className="flex items-baseline justify-between gap-4 text-xs tabular-nums">

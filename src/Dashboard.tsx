@@ -675,7 +675,7 @@ function SettingsModal({
                 key={g}
                 onClick={() => onGranularityChange(g)}
                 className={`flex-1 px-3 py-1.5 text-xs rounded-md transition-colors capitalize ${
-                  granularity === g ? 'bg-green-500/15 text-green-400 ring-1 ring-green-500/25' : 'text-zinc-400 hover:text-zinc-200'
+                  granularity === g ? 'bg-[#0099FF]/15 text-[#0099FF] ring-1 ring-[#0099FF]/25' : 'text-zinc-400 hover:text-zinc-200'
                 }`}
               >
                 {g}
@@ -692,7 +692,7 @@ function SettingsModal({
                 key={r}
                 onClick={() => onRangeChange(r)}
                 className={`flex-1 px-3 py-1.5 text-xs rounded-md transition-colors ${
-                  range === r ? 'bg-green-500/15 text-green-400 ring-1 ring-green-500/25' : 'text-zinc-400 hover:text-zinc-200'
+                  range === r ? 'bg-[#0099FF]/15 text-[#0099FF] ring-1 ring-[#0099FF]/25' : 'text-zinc-400 hover:text-zinc-200'
                 }`}
               >
                 {r.toUpperCase()}
