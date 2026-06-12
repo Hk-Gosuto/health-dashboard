@@ -6,6 +6,7 @@ import {
 import type { DailyBreathing } from './types'
 import { StatBox, AISummaryButton, TabHeader, ChartTooltip, useChartTheme, chartMargin, COLORS, shortDate, avg } from './ui'
 
+import { translateText as tText } from './i18n'
 // Apple's thresholds for breathing disturbances
 // < 5: not elevated, 5-14.9: mildly elevated, 15-29.9: moderately elevated, >= 30: severely elevated
 function disturbanceCategory(val: number): { label: string; color: string } {
@@ -115,17 +116,17 @@ export default function Breathing({ dailyBreathing, cutoffDate }: Props) {
   const hasData = weeklyDisturbances.length > 0 || weeklyRespRate.length > 0 || weeklySpo2.length > 0
 
   if (!hasData) {
-    return <div className="text-zinc-500 text-center py-20">No breathing data found.</div>
+    return <div className="text-zinc-500 text-center py-20">{tText('No breathing data found.')}</div>
   }
 
   return (
     <div className="space-y-6">
-      <TabHeader title="Breathing" description="Blood oxygen levels, respiratory rate, and breathing disturbances tracked during sleep." />
+      <TabHeader title={tText('Breathing')} description={tText('Blood oxygen levels, respiratory rate, and breathing disturbances tracked during sleep.')} />
       {/* Summary */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
         {avgDist !== null && (
           <StatBox
-            label="Disturbances"
+            label={tText('Disturbances')}
             value={`${avgDist.toFixed(1)}`}
             unit="/hr"
             color={distCategory?.color}
@@ -134,7 +135,7 @@ export default function Breathing({ dailyBreathing, cutoffDate }: Props) {
         )}
         {elevatedNights > 0 && (
           <StatBox
-            label="Elevated Nights"
+            label={tText('Elevated Nights')}
             value={`${elevatedNights}`}
             sub={`of last ${recentDist.length} nights`}
             color={elevatedNights > 5 ? COLORS.red : '#f97316'}
@@ -142,32 +143,32 @@ export default function Breathing({ dailyBreathing, cutoffDate }: Props) {
         )}
         {avgRR !== null && (
           <StatBox
-            label="Respiratory Rate"
+            label={tText('Respiratory Rate')}
             value={`${avgRR.toFixed(1)}`}
             unit="br/min"
             color={COLORS.blue}
-            sub="Avg last 30 days"
+            sub={tText('Avg last 30 days')}
           />
         )}
         {avgSpo2Val !== null && (
           <StatBox
-            label="SpO2"
+            label={tText('SpO2')}
             value={`${avgSpo2Val.toFixed(1)}`}
             unit="%"
             color={avgSpo2Val >= 95 ? COLORS.green : COLORS.red}
-            sub="Avg last 30 days"
+            sub={tText('Avg last 30 days')}
           />
         )}
         {minSpo2 !== null && (
           <StatBox
-            label="Min SpO2"
+            label={tText('Min SpO2')}
             value={`${minSpo2.toFixed(1)}`}
             unit="%"
             color={minSpo2 >= 90 ? COLORS.green : COLORS.red}
             sub={minSpo2 < 90 ? 'Below normal' : 'Normal'}
           />
         )}
-        <StatBox label="Data Points" value={`${filtered.length}`} sub="nights tracked" />
+        <StatBox label={tText('Data Points')} value={`${filtered.length}`} sub={tText('nights tracked')} />
       </div>
 
       {/* Breathing disturbances */}
@@ -175,10 +176,10 @@ export default function Breathing({ dailyBreathing, cutoffDate }: Props) {
         <div className="bg-zinc-900 rounded-xl border border-zinc-800 p-4">
           <div className="flex items-start justify-between mb-1">
             <div>
-              <h3 className="text-sm font-medium text-zinc-300">Breathing Disturbances (weekly avg)</h3>
-              <p className="text-xs text-zinc-500 mt-0.5">Events per hour during sleep. Under 5/hr is normal. Elevated may indicate sleep apnea.</p>
+              <h3 className="text-sm font-medium text-zinc-300">{tText('Breathing Disturbances (weekly avg)')}</h3>
+              <p className="text-xs text-zinc-500 mt-0.5">{tText('Events per hour during sleep. Under 5/hr is normal. Elevated may indicate sleep apnea.')}</p>
             </div>
-            <AISummaryButton title="Breathing Disturbances (weekly avg)" description="Events per hour during sleep. Under 5/hr is normal. Elevated may indicate sleep apnea." chartData={weeklyDisturbances} />
+            <AISummaryButton title={tText('Breathing Disturbances (weekly avg)')} description={tText('Events per hour during sleep. Under 5/hr is normal. Elevated may indicate sleep apnea.')} chartData={weeklyDisturbances} />
           </div>
           <div className="h-56">
             <ResponsiveContainer width="100%" height="100%" minWidth={0} debounce={1}>
@@ -208,10 +209,10 @@ export default function Breathing({ dailyBreathing, cutoffDate }: Props) {
           <div className="bg-zinc-900 rounded-xl border border-zinc-800 p-4">
             <div className="flex items-start justify-between mb-1">
               <div>
-                <h3 className="text-sm font-medium text-zinc-300">Respiratory Rate (weekly avg)</h3>
-                <p className="text-xs text-zinc-500 mt-0.5">Normal adult: 12-20 breaths/min at rest</p>
+                <h3 className="text-sm font-medium text-zinc-300">{tText('Respiratory Rate (weekly avg)')}</h3>
+                <p className="text-xs text-zinc-500 mt-0.5">{tText('Normal adult: 12-20 breaths/min at rest')}</p>
               </div>
-              <AISummaryButton title="Respiratory Rate (weekly avg)" description="Normal adult: 12-20 breaths/min at rest" chartData={weeklyRespRate} />
+              <AISummaryButton title={tText('Respiratory Rate (weekly avg)')} description={tText('Normal adult: 12-20 breaths/min at rest')} chartData={weeklyRespRate} />
             </div>
             <div className="h-56">
               <ResponsiveContainer width="100%" height="100%" minWidth={0} debounce={1}>
@@ -240,10 +241,10 @@ export default function Breathing({ dailyBreathing, cutoffDate }: Props) {
           <div className="bg-zinc-900 rounded-xl border border-zinc-800 p-4">
             <div className="flex items-start justify-between mb-1">
               <div>
-                <h3 className="text-sm font-medium text-zinc-300">Blood Oxygen (weekly avg)</h3>
-                <p className="text-xs text-zinc-500 mt-0.5">Normal: 95-100%. Below 90% is concerning.</p>
+                <h3 className="text-sm font-medium text-zinc-300">{tText('Blood Oxygen (weekly avg)')}</h3>
+                <p className="text-xs text-zinc-500 mt-0.5">{tText('Normal: 95-100%. Below 90% is concerning.')}</p>
               </div>
-              <AISummaryButton title="Blood Oxygen (weekly avg)" description="Normal: 95-100%. Below 90% is concerning." chartData={weeklySpo2} />
+              <AISummaryButton title={tText('Blood Oxygen (weekly avg)')} description={tText('Normal: 95-100%. Below 90% is concerning.')} chartData={weeklySpo2} />
             </div>
             <div className="h-56">
               <ResponsiveContainer width="100%" height="100%" minWidth={0} debounce={1}>
@@ -272,10 +273,10 @@ export default function Breathing({ dailyBreathing, cutoffDate }: Props) {
         <div className="bg-zinc-900 rounded-xl border border-zinc-800 p-4">
           <div className="flex items-start justify-between mb-1">
             <div>
-              <h3 className="text-sm font-medium text-zinc-300">Disturbances vs Blood Oxygen</h3>
-              <p className="text-xs text-zinc-500 mt-0.5">Higher disturbances often correlate with lower SpO2 — a hallmark of sleep apnea.</p>
+              <h3 className="text-sm font-medium text-zinc-300">{tText('Disturbances vs Blood Oxygen')}</h3>
+              <p className="text-xs text-zinc-500 mt-0.5">{tText('Higher disturbances often correlate with lower SpO2 — a hallmark of sleep apnea.')}</p>
             </div>
-            <AISummaryButton title="Disturbances vs Blood Oxygen" description="Higher disturbances often correlate with lower SpO2 — a hallmark of sleep apnea." chartData={distVsSpo2} />
+            <AISummaryButton title={tText('Disturbances vs Blood Oxygen')} description={tText('Higher disturbances often correlate with lower SpO2 — a hallmark of sleep apnea.')} chartData={distVsSpo2} />
           </div>
           <div className="h-56">
             <ResponsiveContainer width="100%" height="100%" minWidth={0} debounce={1}>

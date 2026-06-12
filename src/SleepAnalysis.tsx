@@ -6,6 +6,7 @@ import {
 import type { SleepRecord, DailySleep, WristTempRecord, DailyBreathing } from './types'
 import type { Granularity } from './analysis'
 import { chartMargin, COLORS, shortDate, avg, Legend, AISummaryButton, TabHeader, useChartTheme, ChartTooltip } from './ui'
+import { useI18n } from './i18n'
 
 const SLEEP_COLORS = { core: '#6366f1', deep: COLORS.purple, rem: COLORS.cyan, awake: COLORS.orange, temp: COLORS.red }
 
@@ -213,6 +214,7 @@ interface Props {
 }
 
 export default function SleepAnalysis({ sleepRecords, wristTempRecords, dailyBreathing, cutoffDate, granularity: _granularity }: Props) {
+  const { tText } = useI18n()
   const ct = useChartTheme()
   const filtered = useMemo(() => {
     if (!cutoffDate) return sleepRecords
@@ -490,76 +492,76 @@ export default function SleepAnalysis({ sleepRecords, wristTempRecords, dailyBre
   }, [filteredBreathing])
 
   if (dailySleep.length === 0 && filteredBreathing.length === 0) {
-    return <div className="text-zinc-500 text-center py-20">No sleep stage data found.</div>
+    return <div className="text-zinc-500 text-center py-20">{tText('No sleep stage data found.')}</div>
   }
 
   return (
     <div className="space-y-6">
-      <TabHeader title="Sleep" description="Sleep duration, stages, schedule patterns, and breathing metrics during sleep." />
+      <TabHeader title={tText('Sleep')} description={tText('Sleep duration, stages, schedule patterns, and breathing metrics during sleep.')} />
       {/* Summary — grouped by what the metrics tell you */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <MetricGroup
-          title="Duration & Stages"
-          description="Deep = physical recovery. REM = learning and mood. Core = light sleep between them."
+          title={tText('Duration & Stages')}
+          description={tText('Deep = physical recovery. REM = learning and mood. Core = light sleep between them.')}
           metrics={[
-            { label: 'Avg Sleep', value: `${avgTotal.toFixed(1)}h`, sub: 'Last 30 nights' },
-            { label: 'Deep', value: `${avgDeep.toFixed(1)}h`, sub: `${avgTotal > 0 ? Math.round(avgDeep / avgTotal * 100) : 0}% of total`, color: SLEEP_COLORS.deep },
-            { label: 'REM', value: `${avgRem.toFixed(1)}h`, sub: `${avgTotal > 0 ? Math.round(avgRem / avgTotal * 100) : 0}% of total`, color: SLEEP_COLORS.rem },
-            { label: 'Core', value: `${avgCore.toFixed(1)}h`, sub: `${avgTotal > 0 ? Math.round(avgCore / avgTotal * 100) : 0}% of total`, color: SLEEP_COLORS.core },
+            { label: tText('Avg Sleep'), value: `${avgTotal.toFixed(1)}h`, sub: tText('Last 30 nights') },
+            { label: tText('Deep'), value: `${avgDeep.toFixed(1)}h`, sub: `${avgTotal > 0 ? Math.round(avgDeep / avgTotal * 100) : 0}% ${tText('of total')}`, color: SLEEP_COLORS.deep },
+            { label: tText('REM'), value: `${avgRem.toFixed(1)}h`, sub: `${avgTotal > 0 ? Math.round(avgRem / avgTotal * 100) : 0}% ${tText('of total')}`, color: SLEEP_COLORS.rem },
+            { label: tText('Core'), value: `${avgCore.toFixed(1)}h`, sub: `${avgTotal > 0 ? Math.round(avgCore / avgTotal * 100) : 0}% ${tText('of total')}`, color: SLEEP_COLORS.core },
           ]}
         />
         <MetricGroup
-          title="Schedule & Chronotype"
-          description="Consistency (0–100) rewards steady bed/wake times. Midsleep is your body-clock marker — a shifting one signals social jet lag."
+          title={tText('Schedule & Chronotype')}
+          description={tText('Consistency (0–100) rewards steady bed/wake times. Midsleep is your body-clock marker — a shifting one signals social jet lag.')}
           metrics={[
-            { label: 'Bedtime', value: minutesToTime(avgBedtime > 1440 ? avgBedtime - 1440 : avgBedtime), sub: `±${Math.round(bedtimeStd)} min` },
-            { label: 'Wake', value: minutesToTime(avgWake), sub: `±${Math.round(wakeStd)} min` },
+            { label: tText('Bedtime'), value: minutesToTime(avgBedtime > 1440 ? avgBedtime - 1440 : avgBedtime), sub: `±${Math.round(bedtimeStd)} min` },
+            { label: tText('Wake'), value: minutesToTime(avgWake), sub: `±${Math.round(wakeStd)} min` },
             consistencyScore !== null
               ? {
-                  label: 'Consistency',
+                  label: tText('Consistency'),
                   value: `${consistencyScore}`,
-                  sub: consistencyScore >= 80 ? 'Excellent' : consistencyScore >= 60 ? 'Good' : consistencyScore >= 40 ? 'Fair' : 'Poor',
+                  sub: consistencyScore >= 80 ? tText('Excellent') : consistencyScore >= 60 ? tText('Good') : consistencyScore >= 40 ? tText('Fair') : tText('Poor'),
                   color: consistencyScore >= 80 ? '#22c55e' : consistencyScore >= 60 ? '#f97316' : '#ef4444',
                 }
               : null,
-            avgMidSleep !== null ? { label: 'Midsleep', value: minutesToTime(avgMidSleep), sub: 'Midpoint of sleep' } : null,
+            avgMidSleep !== null ? { label: tText('Midsleep'), value: minutesToTime(avgMidSleep), sub: tText('Midpoint of sleep') } : null,
           ]}
         />
       </div>
 
       <MetricGroup
-        title="Sleep Quality"
-        description="How well you slept once in bed. Latency = time to fall asleep. WASO = minutes awake after falling asleep. Debt = rolling hours vs an 8h target."
+        title={tText('Sleep Quality')}
+        description={tText('How well you slept once in bed. Latency = time to fall asleep. WASO = minutes awake after falling asleep. Debt = rolling hours vs an 8h target.')}
         metrics={[
           avgEfficiency !== null
             ? {
-                label: 'Efficiency',
+                label: tText('Efficiency'),
                 value: `${avgEfficiency}%`,
-                sub: 'Asleep / in bed',
+                sub: tText('Asleep / in bed'),
                 color: avgEfficiency >= 85 ? '#22c55e' : avgEfficiency >= 75 ? '#f97316' : '#ef4444',
               }
             : null,
           avgLatency !== null
             ? {
-                label: 'Latency',
+                label: tText('Latency'),
                 value: `${avgLatency}m`,
-                sub: 'Time to fall asleep',
+                sub: tText('Time to fall asleep'),
                 color: avgLatency <= 20 ? '#22c55e' : avgLatency <= 35 ? '#f97316' : '#ef4444',
               }
             : null,
           avgWaso !== null
             ? {
-                label: 'WASO',
+                label: tText('WASO'),
                 value: `${avgWaso}m`,
-                sub: 'Awake mid-sleep',
+                sub: tText('Awake mid-sleep'),
                 color: avgWaso <= 20 ? '#22c55e' : avgWaso <= 40 ? '#f97316' : '#ef4444',
               }
             : null,
           recent7Debt !== null
             ? {
-                label: '7-Day Debt',
+                label: tText('7-Day Debt'),
                 value: `${recent7Debt > 0 ? '+' : ''}${recent7Debt}h`,
-                sub: recent7Debt >= 0 ? 'Surplus vs 8h' : 'Deficit vs 8h',
+                sub: recent7Debt >= 0 ? tText('Surplus vs 8h') : tText('Deficit vs 8h'),
                 color: recent7Debt >= 0 ? '#22c55e' : recent7Debt >= -3 ? '#f97316' : '#ef4444',
               }
             : null,
@@ -571,10 +573,10 @@ export default function SleepAnalysis({ sleepRecords, wristTempRecords, dailyBre
         <div className="bg-zinc-900 rounded-xl border border-zinc-800 p-4">
           <div className="flex items-start justify-between mb-1">
             <div>
-              <h3 className="text-sm font-medium text-zinc-300">Sleep Debt</h3>
-              <p className="text-xs text-zinc-500 mt-0.5">Cumulative surplus or deficit against an {TARGET_HOURS}h nightly target. Below zero means you owe your body sleep.</p>
+              <h3 className="text-sm font-medium text-zinc-300">{tText('Sleep Debt')}</h3>
+              <p className="text-xs text-zinc-500 mt-0.5">{tText('Cumulative surplus or deficit against an 8h nightly target. Below zero means you owe your body sleep.')}</p>
             </div>
-            <AISummaryButton title="Sleep Debt" description={`Cumulative sleep surplus/deficit vs ${TARGET_HOURS}h target`} chartData={filteredDebt} />
+            <AISummaryButton title={tText('Sleep Debt')} description={`Cumulative sleep surplus/deficit vs ${TARGET_HOURS}h target`} chartData={filteredDebt} />
           </div>
           <div className="h-56">
             <ResponsiveContainer width="100%" height="100%" minWidth={0} debounce={1}>
@@ -618,9 +620,9 @@ export default function SleepAnalysis({ sleepRecords, wristTempRecords, dailyBre
         <div className="bg-zinc-900 rounded-xl border border-zinc-800 p-4">
           <div className="flex items-start justify-between mb-1">
             <div>
-              <h3 className="text-sm font-medium text-zinc-300">Sleep Stages (weekly avg, hours)</h3>
+              <h3 className="text-sm font-medium text-zinc-300">{tText('Sleep Stages (weekly avg, hours)')}</h3>
             </div>
-            <AISummaryButton title="Sleep Stages" description="Weekly average sleep stages in hours" chartData={weeklyData} />
+            <AISummaryButton title={tText('Sleep Stages')} description={tText('Weekly average sleep stages in hours')} chartData={weeklyData} />
           </div>
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%" minWidth={0} debounce={1}>
@@ -628,7 +630,7 @@ export default function SleepAnalysis({ sleepRecords, wristTempRecords, dailyBre
                 <CartesianGrid strokeDasharray="3 3" stroke={ct.grid} />
                 <XAxis dataKey="week" tick={{ fontSize: 10, fill: ct.tick }} tickFormatter={shortDate} />
                 <YAxis tick={{ fontSize: 10, fill: ct.tick }} />
-                <Tooltip content={<ChartTooltip formatter={(value, name) => [`${value}h`, name === 'core' ? 'Core' : name === 'deep' ? 'Deep' : name === 'rem' ? 'REM' : 'Awake']} />} />
+                <Tooltip content={<ChartTooltip formatter={(value, name) => [`${value}h`, name === 'core' ? tText('Core') : name === 'deep' ? tText('Deep') : name === 'rem' ? tText('REM') : tText('Awake')]} />} />
                 <Bar dataKey="deep" stackId="sleep" fill={SLEEP_COLORS.deep} radius={[0, 0, 0, 0]} />
                 <Bar dataKey="rem" stackId="sleep" fill={SLEEP_COLORS.rem} />
                 <Bar dataKey="core" stackId="sleep" fill={SLEEP_COLORS.core} radius={[4, 4, 0, 0]} />
@@ -639,7 +641,7 @@ export default function SleepAnalysis({ sleepRecords, wristTempRecords, dailyBre
             {Object.entries(SLEEP_COLORS).filter(([k]) => k !== 'temp').map(([key, color]) => (
               <div key={key} className="flex items-center gap-1.5 text-xs text-zinc-400">
                 <div className="w-2.5 h-2.5 rounded-sm" style={{ background: color }} />
-                {key.charAt(0).toUpperCase() + key.slice(1)}
+                {tText(key.charAt(0).toUpperCase() + key.slice(1))}
               </div>
             ))}
           </div>
@@ -652,10 +654,10 @@ export default function SleepAnalysis({ sleepRecords, wristTempRecords, dailyBre
           <div className="bg-zinc-900 rounded-xl border border-zinc-800 p-4">
             <div className="flex items-start justify-between mb-1">
               <div>
-                <h3 className="text-sm font-medium text-zinc-300">Bedtime & Wake Schedule (weekly avg)</h3>
-                <p className="text-xs text-zinc-500 mt-0.5">Consistent schedule = better sleep quality</p>
+                <h3 className="text-sm font-medium text-zinc-300">{tText('Bedtime & Wake Schedule (weekly avg)')}</h3>
+                <p className="text-xs text-zinc-500 mt-0.5">{tText('Consistent schedule = better sleep quality')}</p>
               </div>
-              <AISummaryButton title="Bedtime & Wake Schedule" description="Consistent schedule = better sleep quality" chartData={weeklySchedule} />
+              <AISummaryButton title={tText('Bedtime & Wake Schedule')} description={tText('Consistent schedule = better sleep quality')} chartData={weeklySchedule} />
             </div>
             <div className="h-56">
               <ResponsiveContainer width="100%" height="100%" minWidth={0} debounce={1}>
@@ -684,8 +686,8 @@ export default function SleepAnalysis({ sleepRecords, wristTempRecords, dailyBre
               </ResponsiveContainer>
             </div>
             <div className="flex gap-4 justify-center mt-2">
-              <Legend color={SLEEP_COLORS.deep} label="Bedtime" />
-              <Legend color="#f97316" label="Wake time" />
+              <Legend color={SLEEP_COLORS.deep} label={tText('Bedtime')} />
+              <Legend color="#f97316" label={tText('Wake time')} />
             </div>
           </div>
         )}
@@ -695,9 +697,9 @@ export default function SleepAnalysis({ sleepRecords, wristTempRecords, dailyBre
           <div className="bg-zinc-900 rounded-xl border border-zinc-800 p-4">
             <div className="flex items-start justify-between mb-1">
               <div>
-                <h3 className="text-sm font-medium text-zinc-300">Total Sleep Trend (weekly avg)</h3>
+                <h3 className="text-sm font-medium text-zinc-300">{tText('Total Sleep Trend (weekly avg)')}</h3>
               </div>
-              <AISummaryButton title="Total Sleep Trend" description="Weekly average total sleep duration" chartData={weeklyData.map(w => ({ week: w.week, total: Math.round((w.core + w.deep + w.rem) * 10) / 10 }))} />
+              <AISummaryButton title={tText('Total Sleep Trend')} description={tText('Weekly average total sleep duration')} chartData={weeklyData.map(w => ({ week: w.week, total: Math.round((w.core + w.deep + w.rem) * 10) / 10 }))} />
             </div>
             <div className="h-56">
               <ResponsiveContainer width="100%" height="100%" minWidth={0} debounce={1}>
@@ -711,7 +713,7 @@ export default function SleepAnalysis({ sleepRecords, wristTempRecords, dailyBre
                   <CartesianGrid strokeDasharray="3 3" stroke={ct.grid} />
                   <XAxis dataKey="week" tick={{ fontSize: 10, fill: ct.tick }} tickFormatter={shortDate} />
                   <YAxis domain={['auto', 'auto']} tick={{ fontSize: 10, fill: ct.tick }} />
-                  <Tooltip content={<ChartTooltip formatter={(v) => [`${v}h`, 'Total Sleep']} />} />
+                  <Tooltip content={<ChartTooltip formatter={(v) => [`${v}h`, tText('Total Sleep')]} />} />
                   <Area type="monotone" dataKey="total" stroke="#6366f1" fill="url(#sleepTotalGrad)" strokeWidth={1.5} dot={false} />
                 </AreaChart>
               </ResponsiveContainer>
@@ -724,9 +726,9 @@ export default function SleepAnalysis({ sleepRecords, wristTempRecords, dailyBre
           <div className="bg-zinc-900 rounded-xl border border-zinc-800 p-4">
             <div className="flex items-start justify-between mb-1">
               <div>
-                <h3 className="text-sm font-medium text-zinc-300">Bedtime Scatter</h3>
+                <h3 className="text-sm font-medium text-zinc-300">{tText('Bedtime Scatter')}</h3>
               </div>
-              <AISummaryButton title="Bedtime Scatter" description="Daily bedtime consistency scatter plot" chartData={dailySleep.filter(d => d.bedtime).map(d => { let bedMins = timeToMinutes(d.bedtime); if (bedMins < 720) bedMins += 1440; return { date: d.date, bedtime: bedMins, total: d.total / 60 } })} />
+              <AISummaryButton title={tText('Bedtime Scatter')} description={tText('Daily bedtime consistency scatter plot')} chartData={dailySleep.filter(d => d.bedtime).map(d => { let bedMins = timeToMinutes(d.bedtime); if (bedMins < 720) bedMins += 1440; return { date: d.date, bedtime: bedMins, total: d.total / 60 } })} />
             </div>
             <div className="h-56">
               <ResponsiveContainer width="100%" height="100%" minWidth={0} debounce={1}>
@@ -771,12 +773,12 @@ export default function SleepAnalysis({ sleepRecords, wristTempRecords, dailyBre
           <div className="bg-zinc-900 rounded-xl border border-zinc-800 p-4">
             <div className="flex items-start justify-between mb-1">
               <div>
-                <h3 className="text-sm font-medium text-zinc-300">Wrist Temperature During Sleep</h3>
+                <h3 className="text-sm font-medium text-zinc-300">{tText('Wrist Temperature During Sleep')}</h3>
                 <p className="text-xs text-zinc-500 mt-0.5">
                   Deviation from baseline ({avgTemp?.toFixed(1)}°C ±{tempStd?.toFixed(2)}°C). Spikes may indicate illness or cycle changes.
                 </p>
               </div>
-              <AISummaryButton title="Wrist Temperature During Sleep" description="Deviation from baseline wrist temperature. Spikes may indicate illness or cycle changes." chartData={tempDeviationData} />
+              <AISummaryButton title={tText('Wrist Temperature During Sleep')} description={tText('Deviation from baseline wrist temperature. Spikes may indicate illness or cycle changes.')} chartData={tempDeviationData} />
             </div>
             <div className="h-56">
               <ResponsiveContainer width="100%" height="100%" minWidth={0} debounce={1}>
@@ -805,7 +807,7 @@ export default function SleepAnalysis({ sleepRecords, wristTempRecords, dailyBre
 
       {/* Deep-dive section */}
       {(consistencyTrend.length > 0 || latencyData.length > 0 || wasoData.length > 0 || chronotypeData.length > 1) && (
-        <h2 className="text-sm font-medium text-zinc-400 mt-2">Deep Dive</h2>
+        <h2 className="text-sm font-medium text-zinc-400 mt-2">{tText('Deep Dive')}</h2>
       )}
 
       {/* Sleep Consistency trend */}
@@ -813,10 +815,10 @@ export default function SleepAnalysis({ sleepRecords, wristTempRecords, dailyBre
         <div className="bg-zinc-900 rounded-xl border border-zinc-800 p-4">
           <div className="flex items-start justify-between mb-1">
             <div>
-              <h3 className="text-sm font-medium text-zinc-300">Sleep Consistency (rolling 14-day)</h3>
-              <p className="text-xs text-zinc-500 mt-0.5">Higher = steadier bed/wake times and duration. Low variance is a stronger health predictor than any single night.</p>
+              <h3 className="text-sm font-medium text-zinc-300">{tText('Sleep Consistency (rolling 14-day)')}</h3>
+              <p className="text-xs text-zinc-500 mt-0.5">{tText('Higher = steadier bed/wake times and duration. Low variance is a stronger health predictor than any single night.')}</p>
             </div>
-            <AISummaryButton title="Sleep Consistency" description="Rolling 14-day consistency score. Higher = steadier sleep schedule." chartData={consistencyTrend} />
+            <AISummaryButton title={tText('Sleep Consistency')} description={tText('Rolling 14-day consistency score. Higher = steadier sleep schedule.')} chartData={consistencyTrend} />
           </div>
           <div className="h-56">
             <ResponsiveContainer width="100%" height="100%" minWidth={0} debounce={1}>
@@ -830,9 +832,9 @@ export default function SleepAnalysis({ sleepRecords, wristTempRecords, dailyBre
                 <CartesianGrid strokeDasharray="3 3" stroke={ct.grid} />
                 <XAxis dataKey="date" tick={{ fontSize: 10, fill: ct.tick }} tickFormatter={shortDate} />
                 <YAxis domain={[0, 100]} tick={{ fontSize: 10, fill: ct.tick }} />
-                <ReferenceLine y={80} stroke="#22c55e" strokeDasharray="3 3" label={{ value: 'Excellent', position: 'right', fill: ct.tick, fontSize: 10 }} />
-                <ReferenceLine y={60} stroke="#f97316" strokeDasharray="3 3" label={{ value: 'Good', position: 'right', fill: ct.tick, fontSize: 10 }} />
-                <Tooltip content={<ChartTooltip formatter={(v) => [`${v}`, 'Score']} />} />
+                <ReferenceLine y={80} stroke="#22c55e" strokeDasharray="3 3" label={{ value: tText('Excellent'), position: 'right', fill: ct.tick, fontSize: 10 }} />
+                <ReferenceLine y={60} stroke="#f97316" strokeDasharray="3 3" label={{ value: tText('Good'), position: 'right', fill: ct.tick, fontSize: 10 }} />
+                <Tooltip content={<ChartTooltip formatter={(v) => [`${v}`, tText('Score')]} />} />
                 <Area type="monotone" dataKey="score" stroke="#22c55e" fill="url(#consistencyGrad)" strokeWidth={1.5} dot={false} />
               </AreaChart>
             </ResponsiveContainer>
@@ -846,10 +848,10 @@ export default function SleepAnalysis({ sleepRecords, wristTempRecords, dailyBre
           <div className="bg-zinc-900 rounded-xl border border-zinc-800 p-4">
             <div className="flex items-start justify-between mb-1">
               <div>
-                <h3 className="text-sm font-medium text-zinc-300">Sleep Latency</h3>
-                <p className="text-xs text-zinc-500 mt-0.5">Minutes from bed to first sleep stage. Healthy range: 10–20 min. &gt;30 min suggests stress, screens, or late caffeine.</p>
+                <h3 className="text-sm font-medium text-zinc-300">{tText('Sleep Latency')}</h3>
+                <p className="text-xs text-zinc-500 mt-0.5">{tText('Minutes from bed to first sleep stage. Healthy range: 10–20 min. >30 min suggests stress, screens, or late caffeine.')}</p>
               </div>
-              <AISummaryButton title="Sleep Latency" description="Minutes from bed to first sleep stage" chartData={latencyData} />
+              <AISummaryButton title={tText('Sleep Latency')} description={tText('Minutes from bed to first sleep stage')} chartData={latencyData} />
             </div>
             <div className="h-56">
               <ResponsiveContainer width="100%" height="100%" minWidth={0} debounce={1}>
@@ -865,7 +867,7 @@ export default function SleepAnalysis({ sleepRecords, wristTempRecords, dailyBre
                   <YAxis domain={[0, 'auto']} tick={{ fontSize: 10, fill: ct.tick }} />
                   <ReferenceLine y={20} stroke="#22c55e" strokeDasharray="3 3" />
                   <ReferenceLine y={30} stroke="#ef4444" strokeDasharray="3 3" />
-                  <Tooltip content={<ChartTooltip formatter={(v) => [`${v} min`, 'Latency']} />} />
+                  <Tooltip content={<ChartTooltip formatter={(v) => [`${v} min`, tText('Latency')]} />} />
                   <Area type="monotone" dataKey="value" stroke={COLORS.cyan} fill="url(#latencyGrad)" strokeWidth={1.5} dot={false} />
                 </AreaChart>
               </ResponsiveContainer>
@@ -878,10 +880,10 @@ export default function SleepAnalysis({ sleepRecords, wristTempRecords, dailyBre
           <div className="bg-zinc-900 rounded-xl border border-zinc-800 p-4">
             <div className="flex items-start justify-between mb-1">
               <div>
-                <h3 className="text-sm font-medium text-zinc-300">Wake After Sleep Onset (WASO)</h3>
-                <p className="text-xs text-zinc-500 mt-0.5">Minutes awake between falling asleep and final wake. Healthy: &lt;20 min. Rising trend can indicate fragmentation.</p>
+                <h3 className="text-sm font-medium text-zinc-300">{tText('Wake After Sleep Onset (WASO)')}</h3>
+                <p className="text-xs text-zinc-500 mt-0.5">{tText('Minutes awake between falling asleep and final wake. Healthy: <20 min. Rising trend can indicate fragmentation.')}</p>
               </div>
-              <AISummaryButton title="WASO" description="Minutes awake between first sleep and final wake" chartData={wasoData} />
+              <AISummaryButton title={tText('WASO')} description={tText('Minutes awake between first sleep and final wake')} chartData={wasoData} />
             </div>
             <div className="h-56">
               <ResponsiveContainer width="100%" height="100%" minWidth={0} debounce={1}>
@@ -896,7 +898,7 @@ export default function SleepAnalysis({ sleepRecords, wristTempRecords, dailyBre
                   <XAxis dataKey="date" tick={{ fontSize: 10, fill: ct.tick }} tickFormatter={shortDate} />
                   <YAxis domain={[0, 'auto']} tick={{ fontSize: 10, fill: ct.tick }} />
                   <ReferenceLine y={20} stroke="#22c55e" strokeDasharray="3 3" />
-                  <Tooltip content={<ChartTooltip formatter={(v) => [`${v} min`, 'WASO']} />} />
+                  <Tooltip content={<ChartTooltip formatter={(v) => [`${v} min`, tText('WASO')]} />} />
                   <Area type="monotone" dataKey="value" stroke={SLEEP_COLORS.awake} fill="url(#wasoGrad)" strokeWidth={1.5} dot={false} />
                 </AreaChart>
               </ResponsiveContainer>
@@ -910,10 +912,10 @@ export default function SleepAnalysis({ sleepRecords, wristTempRecords, dailyBre
         <div className="bg-zinc-900 rounded-xl border border-zinc-800 p-4">
           <div className="flex items-start justify-between mb-1">
             <div>
-              <h3 className="text-sm font-medium text-zinc-300">Chronotype Drift (monthly midsleep)</h3>
-              <p className="text-xs text-zinc-500 mt-0.5">Midpoint between sleep onset and final wake. A shifting midsleep signals social jet lag or lifestyle changes.</p>
+              <h3 className="text-sm font-medium text-zinc-300">{tText('Chronotype Drift (monthly midsleep)')}</h3>
+              <p className="text-xs text-zinc-500 mt-0.5">{tText('Midpoint between sleep onset and final wake. A shifting midsleep signals social jet lag or lifestyle changes.')}</p>
             </div>
-            <AISummaryButton title="Chronotype Drift" description="Monthly average midsleep time (midpoint between sleep onset and final wake)" chartData={chronotypeData} />
+            <AISummaryButton title={tText('Chronotype Drift')} description={tText('Monthly average midsleep time (midpoint between sleep onset and final wake)')} chartData={chronotypeData} />
           </div>
           <div className="h-56">
             <ResponsiveContainer width="100%" height="100%" minWidth={0} debounce={1}>
@@ -932,8 +934,8 @@ export default function SleepAnalysis({ sleepRecords, wristTempRecords, dailyBre
                   domain={['auto', 'auto']}
                 />
                 <Tooltip content={<ChartTooltip formatter={(v, name) => {
-                  if (name === 'midSleep') return [minutesToTime(v as number), 'Midsleep']
-                  return [`±${v} min`, 'Spread (σ)']
+                  if (name === 'midSleep') return [minutesToTime(v as number), tText('Midsleep')]
+                  return [`±${v} min`, tText('Spread (σ)')]
                 }} />} />
                 <Area type="monotone" dataKey="midSleep" stroke={COLORS.purple} fill="url(#chronoGrad)" strokeWidth={1.5} dot={{ r: 3 }} />
               </AreaChart>
@@ -947,13 +949,13 @@ export default function SleepAnalysis({ sleepRecords, wristTempRecords, dailyBre
         <div className="bg-zinc-900 rounded-xl border border-zinc-800 p-4">
           <div className="flex items-start justify-between mb-1">
             <div>
-              <h3 className="text-sm font-medium text-zinc-300">Respiratory Rate Anomalies</h3>
+              <h3 className="text-sm font-medium text-zinc-300">{tText('Respiratory Rate Anomalies')}</h3>
               <p className="text-xs text-zinc-500 mt-0.5">
-                Nights more than 1 SD from your 30-day baseline. Elevated resp rate often precedes illness by 1–2 days.
-                {respAnomalyData.anomalyCount > 0 && <> Flagged: <span className="text-orange-400">{respAnomalyData.anomalyCount} night{respAnomalyData.anomalyCount === 1 ? '' : 's'}</span>.</>}
+                {tText('Nights more than 1 SD from your 30-day baseline. Elevated resp rate often precedes illness by 1–2 days.')}
+                {respAnomalyData.anomalyCount > 0 && <> {tText('Flagged:')} <span className="text-orange-400">{respAnomalyData.anomalyCount} {tText(respAnomalyData.anomalyCount === 1 ? 'night' : 'nights')}</span>.</>}
               </p>
             </div>
-            <AISummaryButton title="Respiratory Rate Anomalies" description="Nights outside 1 SD of rolling 30-day baseline" chartData={respAnomalyData.series} />
+            <AISummaryButton title={tText('Respiratory Rate Anomalies')} description={tText('Nights outside 1 SD of rolling 30-day baseline')} chartData={respAnomalyData.series} />
           </div>
           <div className="h-56">
             <ResponsiveContainer width="100%" height="100%" minWidth={0} debounce={1}>
@@ -962,11 +964,11 @@ export default function SleepAnalysis({ sleepRecords, wristTempRecords, dailyBre
                 <XAxis dataKey="date" tick={{ fontSize: 10, fill: ct.tick }} tickFormatter={shortDate} />
                 <YAxis domain={['auto', 'auto']} tick={{ fontSize: 10, fill: ct.tick }} />
                 <Tooltip content={<ChartTooltip formatter={(v, name) => {
-                  if (name === 'value') return [`${v} br/min`, 'Resp Rate']
-                  if (name === 'baseline') return [`${v} br/min`, 'Baseline']
+                  if (name === 'value') return [`${v} br/min`, tText('Resp Rate')]
+                  if (name === 'baseline') return [`${v} br/min`, tText('Baseline')]
                   if (name === 'upper') return [`${v} br/min`, '+1 SD']
                   if (name === 'lower') return [`${v} br/min`, '−1 SD']
-                  if (name === 'anomaly') return [`${v} br/min`, 'Anomaly']
+                  if (name === 'anomaly') return [`${v} br/min`, tText('Anomaly')]
                   return [`${v}`, String(name)]
                 }} />} />
                 <Area type="monotone" dataKey="upper" stroke="none" fill={COLORS.cyan} fillOpacity={0.08} />
@@ -978,9 +980,9 @@ export default function SleepAnalysis({ sleepRecords, wristTempRecords, dailyBre
             </ResponsiveContainer>
           </div>
           <div className="flex gap-4 justify-center mt-2 flex-wrap">
-            <Legend color="#3b82f6" label="Resp rate" />
-            <Legend color={COLORS.cyan} label="30-day baseline" dashed />
-            <Legend color="#ef4444" label="Anomaly (>1 SD)" />
+            <Legend color="#3b82f6" label={tText('Resp rate')} />
+            <Legend color={COLORS.cyan} label={tText('30-day baseline')} dashed />
+            <Legend color="#ef4444" label={tText('Anomaly (>1 SD)')} />
           </div>
         </div>
       )}
@@ -988,20 +990,20 @@ export default function SleepAnalysis({ sleepRecords, wristTempRecords, dailyBre
       {/* Breathing & Respiratory section */}
       {(weeklyDisturbances.length > 1 || weeklyRespRate.length > 1 || weeklySpo2.length > 1) && (
         <>
-          <h2 className="text-sm font-medium text-zinc-400 mt-2">Breathing & Respiratory</h2>
+          <h2 className="text-sm font-medium text-zinc-400 mt-2">{tText('Breathing & Respiratory')}</h2>
 
           {/* Disturbances */}
           {weeklyDisturbances.length > 1 && (
             <div className="bg-zinc-900 rounded-xl border border-zinc-800 p-4">
               <div className="flex items-start justify-between mb-1">
                 <div>
-                  <h3 className="text-sm font-medium text-zinc-300">Breathing Disturbances (weekly avg)</h3>
+                  <h3 className="text-sm font-medium text-zinc-300">{tText('Breathing Disturbances (weekly avg)')}</h3>
                   <p className="text-xs text-zinc-500 mt-0.5">
-                    Events/hr during sleep. Under 5 is normal.
-                    {avgDist !== null && <> Current avg: <span className={avgDist < 5 ? 'text-green-400' : avgDist < 15 ? 'text-orange-400' : 'text-red-400'}>{avgDist.toFixed(1)}/hr</span></>}
+                    {tText('Events/hr during sleep. Under 5 is normal.')}
+                    {avgDist !== null && <> {tText('Current avg:')} <span className={avgDist < 5 ? 'text-green-400' : avgDist < 15 ? 'text-orange-400' : 'text-red-400'}>{avgDist.toFixed(1)}/hr</span></>}
                   </p>
                 </div>
-                <AISummaryButton title="Breathing Disturbances" description="Events per hour during sleep. Under 5 is normal." chartData={weeklyDisturbances} />
+                <AISummaryButton title={tText('Breathing Disturbances')} description={tText('Events per hour during sleep. Under 5 is normal.')} chartData={weeklyDisturbances} />
               </div>
               <div className="h-56">
                 <ResponsiveContainer width="100%" height="100%" minWidth={0} debounce={1}>
@@ -1015,9 +1017,9 @@ export default function SleepAnalysis({ sleepRecords, wristTempRecords, dailyBre
                     <CartesianGrid strokeDasharray="3 3" stroke={ct.grid} />
                     <XAxis dataKey="week" tick={{ fontSize: 10, fill: ct.tick }} tickFormatter={shortDate} />
                     <YAxis domain={[0, 'auto']} tick={{ fontSize: 10, fill: ct.tick }} />
-                    <ReferenceLine y={5} stroke="#f97316" strokeDasharray="3 3" label={{ value: 'Mild', position: 'right', fill: ct.tick, fontSize: 10 }} />
-                    <ReferenceLine y={15} stroke="#ef4444" strokeDasharray="3 3" label={{ value: 'Moderate', position: 'right', fill: ct.tick, fontSize: 10 }} />
-                    <Tooltip content={<ChartTooltip formatter={(v) => [`${v}/hr`, 'Disturbances']} />} />
+                    <ReferenceLine y={5} stroke="#f97316" strokeDasharray="3 3" label={{ value: tText('Mild'), position: 'right', fill: ct.tick, fontSize: 10 }} />
+                    <ReferenceLine y={15} stroke="#ef4444" strokeDasharray="3 3" label={{ value: tText('Moderate'), position: 'right', fill: ct.tick, fontSize: 10 }} />
+                    <Tooltip content={<ChartTooltip formatter={(v) => [`${v}/hr`, tText('Disturbances')]} />} />
                     <Area type="monotone" dataKey="value" stroke="#ef4444" fill="url(#distGrad2)" strokeWidth={1.5} dot={false} />
                   </AreaChart>
                 </ResponsiveContainer>
@@ -1031,10 +1033,10 @@ export default function SleepAnalysis({ sleepRecords, wristTempRecords, dailyBre
               <div className="bg-zinc-900 rounded-xl border border-zinc-800 p-4">
                 <div className="flex items-start justify-between mb-1">
                   <div>
-                    <h3 className="text-sm font-medium text-zinc-300">Respiratory Rate (weekly avg)</h3>
-                    <p className="text-xs text-zinc-500 mt-0.5">Normal: 12-20 breaths/min at rest</p>
+                    <h3 className="text-sm font-medium text-zinc-300">{tText('Respiratory Rate (weekly avg)')}</h3>
+                    <p className="text-xs text-zinc-500 mt-0.5">{tText('Normal: 12-20 breaths/min at rest')}</p>
                   </div>
-                  <AISummaryButton title="Respiratory Rate" description="Normal: 12-20 breaths/min at rest" chartData={weeklyRespRate} />
+                  <AISummaryButton title={tText('Respiratory Rate')} description={tText('Normal: 12-20 breaths/min at rest')} chartData={weeklyRespRate} />
                 </div>
                 <div className="h-56">
                   <ResponsiveContainer width="100%" height="100%" minWidth={0} debounce={1}>
@@ -1050,7 +1052,7 @@ export default function SleepAnalysis({ sleepRecords, wristTempRecords, dailyBre
                       <YAxis domain={['auto', 'auto']} tick={{ fontSize: 10, fill: ct.tick }} />
                       <ReferenceLine y={12} stroke="#71717a" strokeDasharray="3 3" />
                       <ReferenceLine y={20} stroke="#71717a" strokeDasharray="3 3" />
-                      <Tooltip content={<ChartTooltip formatter={(v) => [`${v} br/min`, 'Respiratory Rate']} />} />
+                      <Tooltip content={<ChartTooltip formatter={(v) => [`${v} br/min`, tText('Respiratory Rate')]} />} />
                       <Area type="monotone" dataKey="value" stroke="#3b82f6" fill="url(#sleepRespRateGrad)" strokeWidth={1.5} dot={false} />
                     </AreaChart>
                   </ResponsiveContainer>
@@ -1063,10 +1065,10 @@ export default function SleepAnalysis({ sleepRecords, wristTempRecords, dailyBre
               <div className="bg-zinc-900 rounded-xl border border-zinc-800 p-4">
                 <div className="flex items-start justify-between mb-1">
                   <div>
-                    <h3 className="text-sm font-medium text-zinc-300">Blood Oxygen (weekly avg)</h3>
-                    <p className="text-xs text-zinc-500 mt-0.5">Normal: 95-100%</p>
+                    <h3 className="text-sm font-medium text-zinc-300">{tText('Blood Oxygen (weekly avg)')}</h3>
+                    <p className="text-xs text-zinc-500 mt-0.5">{tText('Normal: 95-100%')}</p>
                   </div>
-                  <AISummaryButton title="Blood Oxygen" description="Normal: 95-100%" chartData={weeklySpo2} />
+                  <AISummaryButton title={tText('Blood Oxygen')} description={tText('Normal: 95-100%')} chartData={weeklySpo2} />
                 </div>
                 <div className="h-56">
                   <ResponsiveContainer width="100%" height="100%" minWidth={0} debounce={1}>
@@ -1094,4 +1096,3 @@ export default function SleepAnalysis({ sleepRecords, wristTempRecords, dailyBre
     </div>
   )
 }
-

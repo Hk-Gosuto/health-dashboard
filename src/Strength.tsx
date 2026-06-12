@@ -5,6 +5,7 @@ import {
 import type { HealthData, Workout, HevyWorkout, HevyExercise } from './types'
 import { COLORS, chartMargin, ChartTooltip, SectionHeader, useChartTheme, fmt, shortDateCompact } from './ui'
 
+import { translateText as tText } from './i18n'
 // ─── helpers ────────────────────────────────────────────────────────────────
 
 function startOfIsoWeek(iso: string): string {
@@ -154,21 +155,21 @@ export default function StrengthOverview({ data, hevy }: StrengthOverviewProps) 
 
   return (
     <>
-      <SectionHeader>Strength Overview</SectionHeader>
+      <SectionHeader>{tText('Strength Overview')}</SectionHeader>
       <p className="text-xs text-zinc-500 -mt-3 mb-2 leading-relaxed">
         {stats.sessions} Hevy sessions · {stats.matchedCount} linked to Apple Health via time-window overlap.
       </p>
 
-      <SectionHeader>At a Glance</SectionHeader>
+      <SectionHeader>{tText('At a Glance')}</SectionHeader>
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
-        <Stat label="Sessions" value={`${stats.sessions}`} />
-        <Stat label="Total Volume" value={fmt(stats.totalVolume)} unit="kg" color={COLORS.purple} />
-        <Stat label="Total Sets" value={`${stats.totalSets}`} color={COLORS.blue} />
-        <Stat label="Total Reps" value={fmt(stats.totalReps)} color={COLORS.cyan} />
-        <Stat label="Avg Duration" value={fmt(stats.avgDurationMin)} unit="min" />
+        <Stat label={tText('Sessions')} value={`${stats.sessions}`} />
+        <Stat label={tText('Total Volume')} value={fmt(stats.totalVolume)} unit="kg" color={COLORS.purple} />
+        <Stat label={tText('Total Sets')} value={`${stats.totalSets}`} color={COLORS.blue} />
+        <Stat label={tText('Total Reps')} value={fmt(stats.totalReps)} color={COLORS.cyan} />
+        <Stat label={tText('Avg Duration')} value={fmt(stats.avgDurationMin)} unit="min" />
       </div>
 
-      <SectionHeader>Weekly Volume</SectionHeader>
+      <SectionHeader>{tText('Weekly Volume')}</SectionHeader>
       <div className="bg-zinc-900 rounded-xl p-4 h-64">
         <ResponsiveContainer width="100%" height="100%" minWidth={0} debounce={1}>
           <BarChart data={weeklyVolume} margin={chartMargin}>
@@ -181,7 +182,7 @@ export default function StrengthOverview({ data, hevy }: StrengthOverviewProps) 
         </ResponsiveContainer>
       </div>
 
-      <SectionHeader>Top Exercises by Volume</SectionHeader>
+      <SectionHeader>{tText('Top Exercises by Volume')}</SectionHeader>
       <div className="bg-zinc-900 rounded-xl p-4 h-80">
         <ResponsiveContainer width="100%" height="100%" minWidth={0} debounce={1}>
           <BarChart data={topExercises} layout="vertical" margin={{ top: 5, right: 16, bottom: 0, left: 8 }}>
@@ -239,7 +240,7 @@ function ScheduleHeatmap({
 
   return (
     <>
-      <SectionHeader>Training Schedule</SectionHeader>
+      <SectionHeader>{tText('Training Schedule')}</SectionHeader>
       <div className="bg-zinc-900 rounded-xl p-4 overflow-x-auto">
         <div className="inline-block min-w-full">
           {/* Hour header */}
@@ -274,11 +275,11 @@ function ScheduleHeatmap({
           ))}
         </div>
         <div className="flex items-center gap-2 mt-3 text-[10px] text-zinc-500">
-          <span>Less</span>
+          <span>{tText('Less')}</span>
           {[0.2, 0.4, 0.6, 0.8, 1].map(o => (
             <div key={o} className="w-3 h-3 rounded-sm" style={{ background: COLORS.purple, opacity: 0.25 + o * 0.75 }} />
           ))}
-          <span>More</span>
+          <span>{tText('More')}</span>
           <span className="ml-auto tabular-nums">peak: {max} session{max === 1 ? '' : 's'}</span>
         </div>
       </div>
@@ -355,20 +356,20 @@ export function SessionDetail({ entry, exerciseHistory, hrTimeline, maxHR }: Ses
 
       {/* Stats strip */}
       <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-2">
-        <Chip label="Volume" value={fmt(h.totalVolumeKg)} unit="kg" color={COLORS.purple} />
-        <Chip label="Working Sets" value={`${working.sets}`} sub={`/ ${h.totalSets} total`} color={COLORS.blue} />
-        <Chip label="Working Reps" value={`${working.reps}`} color={COLORS.cyan} />
-        <Chip label="Duration" value={fmt(h.durationMin)} unit="min" />
+        <Chip label={tText('Volume')} value={fmt(h.totalVolumeKg)} unit="kg" color={COLORS.purple} />
+        <Chip label={tText('Working Sets')} value={`${working.sets}`} sub={`/ ${h.totalSets} total`} color={COLORS.blue} />
+        <Chip label={tText('Working Reps')} value={`${working.reps}`} color={COLORS.cyan} />
+        <Chip label={tText('Duration')} value={fmt(h.durationMin)} unit="min" />
         {apple?.calories ? (
-          <Chip label="Calories (Apple)" value={`${Math.round(apple.calories)}`} unit="kcal" color={COLORS.orange} />
+          <Chip label={tText('Calories (Apple)')} value={`${Math.round(apple.calories)}`} unit="kcal" color={COLORS.orange} />
         ) : (
-          <Chip label="Est. Calories" value={`${derivedKcal}`} unit="kcal" color={COLORS.orange} sub="from volume" />
+          <Chip label={tText('Est. Calories')} value={`${derivedKcal}`} unit="kcal" color={COLORS.orange} sub={tText('from volume')} />
         )}
-        {apple?.avgMETs != null && <Chip label="Avg METs" value={apple.avgMETs.toFixed(1)} />}
-        {hrStats && <Chip label="HR Avg" value={`${Math.round(hrStats.avg)}`} unit="bpm" color={COLORS.red} />}
-        {hrStats && <Chip label="HR Max" value={`${Math.round(hrStats.max)}`} unit="bpm" color={COLORS.red} sub={`${Math.round(hrStats.max / maxHR * 100)}% maxHR`} />}
-        {apple?.weather && <Chip label="Weather" value={`${apple.weather}`} />}
-        {apple?.elevationAscended != null && apple.elevationAscended > 0 && <Chip label="Elevation" value={`${Math.round(apple.elevationAscended)}`} unit="m" />}
+        {apple?.avgMETs != null && <Chip label={tText('Avg METs')} value={apple.avgMETs.toFixed(1)} />}
+        {hrStats && <Chip label={tText('HR Avg')} value={`${Math.round(hrStats.avg)}`} unit="bpm" color={COLORS.red} />}
+        {hrStats && <Chip label={tText('HR Max')} value={`${Math.round(hrStats.max)}`} unit="bpm" color={COLORS.red} sub={`${Math.round(hrStats.max / maxHR * 100)}% maxHR`} />}
+        {apple?.weather && <Chip label={tText('Weather')} value={`${apple.weather}`} />}
+        {apple?.elevationAscended != null && apple.elevationAscended > 0 && <Chip label={tText('Elevation')} value={`${Math.round(apple.elevationAscended)}`} unit="m" />}
       </div>
 
 
@@ -376,7 +377,7 @@ export function SessionDetail({ entry, exerciseHistory, hrTimeline, maxHR }: Ses
       {muscleTotal > 0 && (
         <div>
           <div className="flex items-center justify-between mb-1.5">
-            <span className="text-[11px] uppercase tracking-wider text-zinc-500">Volume by Muscle Group</span>
+            <span className="text-[11px] uppercase tracking-wider text-zinc-500">{tText('Volume by Muscle Group')}</span>
             <span className="text-[10px] text-zinc-500 tabular-nums">{fmt(muscleTotal)} kg</span>
           </div>
           <div className="flex h-2 rounded-full overflow-hidden bg-zinc-950">
@@ -431,7 +432,7 @@ export function SessionDetail({ entry, exerciseHistory, hrTimeline, maxHR }: Ses
                 )}
               </div>
               <div className="text-[11px] text-zinc-500 tabular-nums shrink-0 flex items-center gap-3">
-                {top && <span>top: <span className="text-zinc-300">{top.weight} kg × {top.reps}</span></span>}
+                {top && <span>{tText('top:')} <span className="text-zinc-300">{top.weight} kg × {top.reps}</span></span>}
                 {e1 > 0 && (
                   <span>
                     e1RM <span className="text-zinc-300">{e1.toFixed(1)}</span>
@@ -442,14 +443,14 @@ export function SessionDetail({ entry, exerciseHistory, hrTimeline, maxHR }: Ses
                     )}
                   </span>
                 )}
-                <span>vol <span className="text-zinc-300">{Math.round(ex.volumeKg)}</span> kg</span>
+                <span>{tText('vol')} <span className="text-zinc-300">{Math.round(ex.volumeKg)}</span> kg</span>
               </div>
             </div>
             <div className="grid grid-cols-[40px_60px_60px_60px_60px] gap-x-3 gap-y-1 text-[11px] tabular-nums">
-              <div className="text-zinc-600 uppercase tracking-wider text-[10px]">Set</div>
-              <div className="text-zinc-600 uppercase tracking-wider text-[10px]">Type</div>
-              <div className="text-zinc-600 uppercase tracking-wider text-[10px]">Weight</div>
-              <div className="text-zinc-600 uppercase tracking-wider text-[10px]">Reps</div>
+              <div className="text-zinc-600 uppercase tracking-wider text-[10px]">{tText('Set')}</div>
+              <div className="text-zinc-600 uppercase tracking-wider text-[10px]">{tText('Type')}</div>
+              <div className="text-zinc-600 uppercase tracking-wider text-[10px]">{tText('Weight')}</div>
+              <div className="text-zinc-600 uppercase tracking-wider text-[10px]">{tText('Reps')}</div>
               <div className="text-zinc-600 uppercase tracking-wider text-[10px]">RPE</div>
               {ex.sets.map(s => <SetRow key={s.index} set={s} />)}
             </div>

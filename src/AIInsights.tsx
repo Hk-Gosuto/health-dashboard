@@ -1,8 +1,19 @@
 import { useState, useMemo, useCallback, useEffect, useRef } from 'react'
 import type { HealthData, DailyMetrics } from './types'
-import { TabHeader } from './ui'
 import { computeHealthScores, scoreLabel, type HealthScore } from './healthScore'
-import { Sparkles, Key, Loader2, MessageCircle, Send, Download, Copy, Check } from 'lucide-react'
+import { Sparkles, Key, Loader2, MessageCircle, Send, Download, Copy, Check, Database, X } from 'lucide-react'
+import { useI18n, type Locale } from './i18n'
+import { fetchLocalAIChat, fetchLocalAIChatStream, getLocalAIStatus, isLocalAIReady, type LocalAIStatus } from './aiClient'
+import { buildInsightsSystemPrompt, localizeQuestion } from './aiPrompts'
+import {
+  buildHealthToolPlanningPrompt,
+  buildToolResultsContext,
+  parseHealthToolPlan,
+  runHealthTool,
+  toToolReference,
+  type HealthToolCurrentView,
+  type HealthToolReference,
+} from './aiTools'
 
 const CACHE_KEY = 'health_chat_cache'
 const CACHE_TTL = 10 * 60 * 1000 // 10 minutes
@@ -108,6 +119,170 @@ interface ChatMessage {
   role: 'user' | 'assistant'
   content: string
   followUps?: string[]
+  toolRefs?: HealthToolReference[]
+}
+
+function parseAssistantOutput(text: string): { responseText: string; followUps: string[] } {
+  const parts = text.split('FOLLOW_UPS:')
+  return {
+    responseText: parts[0].trim(),
+    followUps: parts[1]
+      ? parts[1].trim().split('|').map(f => f.trim()).filter(Boolean).slice(0, 3)
+      : [],
+  }
+}
+
+function formatChatMessage(message: ChatMessage): string {
+  if (message.role === 'user') return `Q: ${message.content}`
+  const refs = message.toolRefs && message.toolRefs.length > 0
+    ? `\n\nData consulted:\n${message.toolRefs.map(ref => `- ${ref.label} (${ref.argsSummary || ref.name}): ${ref.summary}`).join('\n')}`
+    : ''
+  return `A: ${message.content}${refs}`
+}
+
+function buildCurrentViewContext(currentView: HealthToolCurrentView | undefined, locale: Locale): string {
+  if (!currentView) return ''
+  const label = currentView.label || currentView.tab
+  if (locale === 'zh') {
+    return `当前用户正在查看的仪表盘模块：
+模块：${label} (${currentView.tab})
+时间范围：${currentView.range || 'all'}
+聚合粒度：${currentView.granularity || 'default'}
+筛选起始日期：${currentView.cutoffDate || 'none'}
+
+当用户的问题含义不明确时，请优先按当前模块理解；但仍然要基于工具返回的数据回答。`
+  }
+  return `Current dashboard view:
+Module: ${label} (${currentView.tab})
+Time range: ${currentView.range || 'all'}
+Granularity: ${currentView.granularity || 'default'}
+Cutoff date: ${currentView.cutoffDate || 'none'}
+
+When the user's question is ambiguous, interpret it in the context of this module, while still grounding the answer in retrieved tool data.`
+}
+
+async function fetchOpenRouterChat(params: {
+  apiKey: string
+  systemPrompt: string
+  messages: { role: 'user' | 'assistant'; content: string }[]
+  maxTokens: number
+}): Promise<string> {
+  const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${params.apiKey}`,
+    },
+    body: JSON.stringify({
+      model: 'anthropic/claude-sonnet-4.6',
+      messages: [
+        { role: 'system', content: params.systemPrompt },
+        ...params.messages,
+      ],
+      max_tokens: params.maxTokens,
+      stream: false,
+    }),
+  })
+
+  if (!res.ok) {
+    const body = await res.text()
+    throw new Error(`API error ${res.status}: ${body.substring(0, 200)}`)
+  }
+
+  const body = await res.json() as { choices?: { message?: { content?: string } }[] }
+  return body.choices?.[0]?.message?.content ?? ''
+}
+
+async function fetchOpenRouterChatStream(
+  params: {
+    apiKey: string
+    systemPrompt: string
+    messages: { role: 'user' | 'assistant'; content: string }[]
+    maxTokens: number
+  },
+  onDelta: (delta: string) => void,
+): Promise<string> {
+  const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${params.apiKey}`,
+    },
+    body: JSON.stringify({
+      model: 'anthropic/claude-sonnet-4.6',
+      messages: [
+        { role: 'system', content: params.systemPrompt },
+        ...params.messages,
+      ],
+      max_tokens: params.maxTokens,
+      stream: true,
+    }),
+  })
+
+  if (!res.ok) {
+    const body = await res.text()
+    throw new Error(`API error ${res.status}: ${body.substring(0, 200)}`)
+  }
+
+  const reader = res.body?.getReader()
+  const decoder = new TextDecoder()
+  let fullText = ''
+
+  if (reader) {
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+
+      const chunk = decoder.decode(value, { stream: true })
+      const lines = chunk.split('\n').filter(l => l.startsWith('data: '))
+
+      for (const line of lines) {
+        const data = line.slice(6).trim()
+        if (data === '[DONE]') continue
+        try {
+          const parsed = JSON.parse(data)
+          const delta = parsed.choices?.[0]?.delta?.content
+          if (delta) {
+            fullText += delta
+            onDelta(delta)
+          }
+        } catch {
+          // Skip malformed stream chunks.
+        }
+      }
+    }
+  }
+
+  return fullText
+}
+
+function DataReferences({ refs, locale }: { refs: HealthToolReference[]; locale: Locale }) {
+  if (refs.length === 0) return null
+  const title = locale === 'zh' ? '参考数据' : 'Data consulted'
+  const rows = locale === 'zh' ? '行' : 'rows'
+  return (
+    <div className="mb-3 rounded-lg border border-zinc-800 bg-zinc-950/60 p-3">
+      <div className="flex items-center gap-1.5 text-[11px] font-medium text-zinc-400 mb-2">
+        <Database size={12} className="text-cyan-400" />
+        {title}
+      </div>
+      <div className="space-y-2">
+        {refs.map((ref, index) => (
+          <div key={`${ref.name}-${index}`} className="rounded-md border border-zinc-800/70 bg-zinc-900/60 px-3 py-2">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <div className="text-xs text-zinc-300 truncate">{ref.label}</div>
+                {ref.argsSummary && <div className="text-[10px] text-zinc-600 mt-0.5 truncate">{ref.argsSummary}</div>}
+              </div>
+              <div className="shrink-0 text-[10px] text-zinc-600 tabular-nums">{ref.rowCount} {rows}</div>
+            </div>
+            <div className="text-[11px] text-zinc-500 mt-1 leading-relaxed">{ref.summary}</div>
+            {ref.reason && <div className="text-[10px] text-zinc-600 mt-1 leading-relaxed">{ref.reason}</div>}
+          </div>
+        ))}
+      </div>
+    </div>
+  )
 }
 
 // Cache helpers
@@ -133,20 +308,44 @@ function saveCache(messages: ChatMessage[]) {
 interface Props {
   data: HealthData
   metrics: DailyMetrics[]
+  currentView?: HealthToolCurrentView
 }
 
-export default function AIInsights({ data, metrics }: Props) {
+export default function AIInsights({ data, metrics, currentView }: Props) {
+  const { tText, locale } = useI18n()
+  const [open, setOpen] = useState(false)
   const [apiKey, setApiKey] = useState(() => sessionStorage.getItem('openrouter_key') || '')
+  const [localAIStatus, setLocalAIStatus] = useState<LocalAIStatus | null>(null)
   const [messages, setMessages] = useState<ChatMessage[]>(() => loadCache()?.messages || [])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [customQ, setCustomQ] = useState('')
   const [streamText, setStreamText] = useState('')
+  const [pendingToolRefs, setPendingToolRefs] = useState<HealthToolReference[]>([])
+  const [loadingStage, setLoadingStage] = useState<'planning' | 'querying' | 'answering' | ''>('')
   const [copied, setCopied] = useState(false)
   const bottomRef = useRef<HTMLDivElement>(null)
 
   const scores = useMemo(() => computeHealthScores(data), [data])
   const dataContext = useMemo(() => buildDataContext(data, scores, metrics), [data, scores, metrics])
+  const localReady = isLocalAIReady(localAIStatus)
+
+  useEffect(() => {
+    let cancelled = false
+    const check = () => {
+      getLocalAIStatus(1000).then(status => {
+        if (!cancelled) setLocalAIStatus(status)
+      })
+    }
+    check()
+    const interval = window.setInterval(check, 5000)
+    window.addEventListener('focus', check)
+    return () => {
+      cancelled = true
+      window.clearInterval(interval)
+      window.removeEventListener('focus', check)
+    }
+  }, [])
 
   // Save to cache whenever messages change
   useEffect(() => {
@@ -156,7 +355,7 @@ export default function AIInsights({ data, metrics }: Props) {
   // Auto-scroll to bottom
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages, streamText])
+  }, [messages, streamText, pendingToolRefs, loadingStage])
 
   const saveKey = useCallback((key: string) => {
     setApiKey(key)
@@ -164,88 +363,94 @@ export default function AIInsights({ data, metrics }: Props) {
   }, [])
 
   const ask = useCallback(async (question: string) => {
-    if (!apiKey || loading) return
+    if ((!localReady && !apiKey) || loading) return
     setLoading(true)
+    setLoadingStage('planning')
     setError('')
     setStreamText('')
+    setPendingToolRefs([])
 
     const newMessages: ChatMessage[] = [...messages, { role: 'user', content: question }]
     setMessages(newMessages)
 
     try {
-      const systemPrompt = `You are a health data analyst. You have access to this person's Apple Health data summary:\n\n${dataContext}\n\nRules:\n- Be specific with numbers from the data\n- Keep responses concise (3-5 short paragraphs max)\n- No markdown formatting (no **, no ##, no bullet points, no dashes for lists)\n- Use plain text only with natural paragraph breaks\n- Be direct and actionable\n- If the data doesn't support an answer, say so\n\nAfter your response, on a new line write "FOLLOW_UPS:" followed by exactly 3 short follow-up questions the user might want to ask next, separated by "|". Make them specific to what you just discussed. Example:\nFOLLOW_UPS:How can I improve my deep sleep?|What's causing my HRV to drop?|Should I change my workout schedule?`
+      const planningPrompt = buildHealthToolPlanningPrompt(locale, data, metrics, currentView)
+      const planningMessages = newMessages
+        .slice(-8)
+        .map(m => ({ role: m.role, content: m.content }))
+      const planningText = localReady
+        ? await fetchLocalAIChat({
+          systemPrompt: planningPrompt,
+          messages: planningMessages,
+          maxTokens: 900,
+        })
+        : await fetchOpenRouterChat({
+          apiKey,
+          systemPrompt: planningPrompt,
+          messages: planningMessages,
+          maxTokens: 900,
+        })
+      const toolCalls = parseHealthToolPlan(planningText)
+      setLoadingStage('querying')
+      const toolResults = toolCalls.map(call => runHealthTool(call, data, metrics))
+      const toolRefs = toolResults.map(toToolReference)
+      setPendingToolRefs(toolRefs)
+      setLoadingStage('answering')
 
-      const apiMessages = [
-        { role: 'system' as const, content: systemPrompt },
-        ...newMessages.map(m => ({ role: m.role as 'user' | 'assistant', content: m.content })),
-      ]
+      const toolContext = buildToolResultsContext(toolResults, locale)
+      const viewContext = buildCurrentViewContext(currentView, locale)
+      const systemPrompt = [buildInsightsSystemPrompt(locale, dataContext), viewContext, toolContext]
+        .filter(Boolean)
+        .join('\n\n')
+      const answerMessages = newMessages.map(m => ({ role: m.role as 'user' | 'assistant', content: m.content }))
 
-      const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${apiKey}`,
+      if (localReady) {
+        let fullText = ''
+        fullText = await fetchLocalAIChatStream(
+          {
+            systemPrompt,
+            messages: answerMessages,
+            maxTokens: 1500,
+          },
+          delta => {
+            fullText += delta
+            const displayText = fullText.split('FOLLOW_UPS:')[0].trim()
+            setStreamText(displayText)
+          },
+        )
+        const { responseText, followUps } = parseAssistantOutput(fullText)
+
+        setMessages([...newMessages, { role: 'assistant', content: responseText, followUps, toolRefs }])
+        return
+      }
+
+      let streamedText = ''
+      const fullText = await fetchOpenRouterChatStream(
+        {
+          apiKey,
+          systemPrompt,
+          messages: answerMessages,
+          maxTokens: 1500,
         },
-        body: JSON.stringify({
-          model: 'anthropic/claude-sonnet-4.6',
-          messages: apiMessages,
-          max_tokens: 1500,
-          stream: true,
-        }),
-      })
-
-      if (!res.ok) {
-        const body = await res.text()
-        throw new Error(`API error ${res.status}: ${body.substring(0, 200)}`)
-      }
-
-      // Stream the response
-      const reader = res.body?.getReader()
-      const decoder = new TextDecoder()
-      let fullText = ''
-
-      if (reader) {
-        while (true) {
-          const { done, value } = await reader.read()
-          if (done) break
-
-          const chunk = decoder.decode(value, { stream: true })
-          const lines = chunk.split('\n').filter(l => l.startsWith('data: '))
-
-          for (const line of lines) {
-            const data = line.slice(6).trim()
-            if (data === '[DONE]') continue
-            try {
-              const parsed = JSON.parse(data)
-              const delta = parsed.choices?.[0]?.delta?.content
-              if (delta) {
-                fullText += delta
-                // Show text without FOLLOW_UPS section while streaming
-                const displayText = fullText.split('FOLLOW_UPS:')[0].trim()
-                setStreamText(displayText)
-              }
-            } catch { /* skip malformed chunks */ }
-          }
-        }
-      }
-
-      // Parse follow-ups from response
-      const parts = fullText.split('FOLLOW_UPS:')
-      const responseText = parts[0].trim()
-      const followUps = parts[1]
-        ? parts[1].trim().split('|').map(f => f.trim()).filter(Boolean).slice(0, 3)
-        : []
+        delta => {
+          streamedText += delta
+          setStreamText(streamedText.split('FOLLOW_UPS:')[0].trim())
+        },
+      )
+      const { responseText, followUps } = parseAssistantOutput(fullText)
 
       setStreamText('')
-      setMessages([...newMessages, { role: 'assistant', content: responseText, followUps }])
+      setMessages([...newMessages, { role: 'assistant', content: responseText, followUps, toolRefs }])
     } catch (err) {
       setError(String(err))
       setMessages(newMessages.slice(0, -1))
     } finally {
       setLoading(false)
+      setLoadingStage('')
       setStreamText('')
+      setPendingToolRefs([])
     }
-  }, [apiKey, loading, messages, dataContext])
+  }, [apiKey, locale, localReady, loading, messages, dataContext, data, metrics, currentView])
 
   const handleCustomSubmit = () => {
     if (customQ.trim()) {
@@ -255,9 +460,7 @@ export default function AIInsights({ data, metrics }: Props) {
   }
 
   const exportChat = useCallback(() => {
-    const text = messages.map(m =>
-      m.role === 'user' ? `Q: ${m.content}` : `A: ${m.content}`
-    ).join('\n\n---\n\n')
+    const text = messages.map(formatChatMessage).join('\n\n---\n\n')
     const blob = new Blob([`Health Insights Chat\n${new Date().toLocaleDateString()}\n\n${text}`], { type: 'text/plain' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
@@ -268,187 +471,251 @@ export default function AIInsights({ data, metrics }: Props) {
   }, [messages])
 
   const copyChat = useCallback(() => {
-    const text = messages.map(m =>
-      m.role === 'user' ? `Q: ${m.content}` : `A: ${m.content}`
-    ).join('\n\n---\n\n')
+    const text = messages.map(formatChatMessage).join('\n\n---\n\n')
     navigator.clipboard.writeText(text)
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
   }, [messages])
 
-  const hasKey = apiKey.length > 10
+  const hasKey = localReady || apiKey.length > 10
 
   // Get last assistant message's follow-ups
   const lastFollowUps = messages.length > 0 && messages[messages.length - 1].role === 'assistant'
     ? messages[messages.length - 1].followUps || []
     : []
+  const loadingText = loadingStage === 'planning'
+    ? (locale === 'zh' ? '判断需要查询哪些本地数据...' : 'Planning local data lookups...')
+    : loadingStage === 'querying'
+      ? (locale === 'zh' ? '正在查询本地健康数据...' : 'Querying local health data...')
+      : loadingStage === 'answering'
+        ? (locale === 'zh' ? '基于参考数据生成回答...' : 'Answering with retrieved data...')
+        : tText('Analyzing your data...')
+  const assistantTitle = locale === 'zh' ? 'AI 健康助理' : 'AI Health Assistant'
+  const viewLabel = currentView?.label || currentView?.tab || (locale === 'zh' ? '总览' : 'Overview')
+  const providerLabel = localReady ? (localAIStatus?.model || 'ChatGPT') : 'OpenRouter'
 
   return (
-    <div className="space-y-4">
-      <TabHeader title="AI Insights" description="AI-powered analysis of your health data to surface trends and actionable recommendations." />
-      {/* API Key */}
-      <div className="rounded-xl border border-zinc-800/60 p-4">
-        <div className="flex items-center justify-between mb-3 gap-2">
-          <div className="flex items-center gap-1.5 text-[12px] font-medium text-zinc-300">
-            <span className="shrink-0 text-purple-400"><Key size={14} /></span>
-            <span className="truncate">OpenRouter API Key</span>
-          </div>
-          {messages.length > 0 && (
-            <div className="flex items-center gap-2">
-              <button onClick={copyChat} className="flex items-center gap-1 text-xs text-zinc-500 hover:text-zinc-300 transition-colors">
-                {copied ? <Check size={12} className="text-green-400" /> : <Copy size={12} />}
-                {copied ? 'Copied' : 'Copy'}
-              </button>
-              <button onClick={exportChat} className="flex items-center gap-1 text-xs text-zinc-500 hover:text-zinc-300 transition-colors">
-                <Download size={12} />
-                Export
-              </button>
-            </div>
-          )}
-        </div>
-        <input
-          type="password"
-          value={apiKey}
-          onChange={e => saveKey(e.target.value)}
-          placeholder="sk-or-..."
-          className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-100 placeholder-zinc-600 focus:outline-none focus:border-zinc-500"
-        />
-        <p className="text-[11px] text-zinc-600 mt-2">Stored in session memory only. Chat cached for 10 min.</p>
-      </div>
-
-      {error && (
-        <div className="bg-red-950/30 border border-red-900/40 rounded-lg px-4 py-3 text-sm text-red-400">{error}</div>
-      )}
-
-      {/* Predefined questions */}
-      {hasKey && messages.length === 0 && !loading && (
-        <div>
-          <h3 className="text-sm font-medium text-zinc-400 mb-3">Ask about your health data</h3>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
-            {PREDEFINED_QUESTIONS.map(q => (
-              <button
-                key={q.label}
-                onClick={() => ask(q.question)}
-                className="text-left bg-zinc-900 border border-zinc-800 rounded-lg px-4 py-3 text-sm text-zinc-300 hover:bg-zinc-800 hover:border-zinc-700 transition-colors"
-              >
-                <MessageCircle size={14} className="text-purple-400 mb-1.5" />
-                {q.label}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Chat messages */}
-      {(messages.length > 0 || streamText) && (
-        <div className="space-y-3">
-          {messages.map((m, i) => (
-            <div key={i} className={`rounded-xl px-4 py-3 ${
-              m.role === 'user'
-                ? 'bg-purple-500/10 border border-purple-500/20 ml-12'
-                : 'bg-zinc-900 border border-zinc-800'
-            }`}>
-              {m.role === 'assistant' && (
-                <div className="flex items-center gap-1.5 mb-2">
-                  <Sparkles size={12} className="text-purple-400" />
-                  <span className="text-[11px] text-purple-400">Claude</span>
-                </div>
-              )}
-              <div className={`text-sm leading-relaxed whitespace-pre-wrap ${
-                m.role === 'user' ? 'text-zinc-200' : 'text-zinc-300'
-              }`}>
-                {m.content}
-              </div>
-            </div>
-          ))}
-
-          {/* Streaming response */}
-          {streamText && (
-            <div className="bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-3">
-              <div className="flex items-center gap-1.5 mb-2">
-                <Sparkles size={12} className="text-purple-400" />
-                <span className="text-[11px] text-purple-400">Claude</span>
-              </div>
-              <div className="text-sm leading-relaxed whitespace-pre-wrap text-zinc-300">
-                {streamText}
-                <span className="inline-block w-1.5 h-4 bg-purple-400 ml-0.5 animate-pulse" />
-              </div>
-            </div>
-          )}
-
-          {/* Loading without stream yet */}
-          {loading && !streamText && (
-            <div className="bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-3 flex items-center gap-2">
-              <Loader2 size={14} className="animate-spin text-purple-400" />
-              <span className="text-sm text-zinc-500">Analyzing your data...</span>
-            </div>
-          )}
-
-          <div ref={bottomRef} />
-        </div>
-      )}
-
-      {/* Follow-ups + custom input */}
-      {hasKey && messages.length > 0 && !loading && (
-        <div className="space-y-3">
-          {/* Contextual follow-ups */}
-          {lastFollowUps.length > 0 && (
-            <div className="flex flex-wrap gap-2">
-              {lastFollowUps.map(q => (
-                <button
-                  key={q}
-                  onClick={() => ask(q)}
-                  className="px-3 py-1.5 bg-zinc-900 border border-zinc-800 rounded-lg text-xs text-zinc-400 hover:text-zinc-200 hover:border-zinc-700 transition-colors"
-                >
-                  {q}
-                </button>
-              ))}
-            </div>
-          )}
-
-          {/* Custom input */}
-          <div className="flex gap-2">
-            <input
-              value={customQ}
-              onChange={e => setCustomQ(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && handleCustomSubmit()}
-              placeholder="Ask a follow-up question..."
-              disabled={loading}
-              className="flex-1 bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-zinc-100 placeholder-zinc-600 focus:outline-none focus:border-zinc-600"
-            />
-            <button
-              onClick={handleCustomSubmit}
-              disabled={loading || !customQ.trim()}
-              className={`px-3 py-2 rounded-lg transition-colors ${
-                loading || !customQ.trim()
-                  ? 'bg-zinc-800 text-zinc-600'
-                  : 'bg-purple-600 text-white hover:bg-purple-500'
-              }`}
-            >
-              <Send size={14} />
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* New conversation */}
-      {messages.length > 0 && !loading && (
+    <>
+      {!open && (
         <button
-          onClick={() => { setMessages([]); localStorage.removeItem(CACHE_KEY) }}
-          className="text-xs text-zinc-600 hover:text-zinc-400 transition-colors"
+          onClick={() => setOpen(true)}
+          aria-label={assistantTitle}
+          title={assistantTitle}
+          className="fixed bottom-4 right-4 z-[130] flex h-14 w-14 items-center justify-center rounded-full bg-[#0099FF] text-white shadow-2xl shadow-black/40 transition-transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-[#0099FF]/60 focus:ring-offset-2 focus:ring-offset-zinc-950"
         >
-          Start new conversation
+          {loading ? <Loader2 size={22} className="animate-spin" /> : <Sparkles size={22} />}
         </button>
       )}
 
-      {/* Empty state */}
-      {!hasKey && (
-        <div className="text-center py-16">
-          <Sparkles size={40} className="mx-auto mb-4 text-zinc-700" />
-          <div className="text-zinc-400 text-sm">Enter your OpenRouter API key above to start</div>
-          <div className="text-zinc-600 text-xs mt-1">Your health data summary will be sent to Claude Sonnet for analysis</div>
+      {open && (
+        <div
+          className="fixed inset-x-3 bottom-3 z-[130] sm:left-auto sm:right-4 sm:bottom-4 sm:w-[420px]"
+          style={{ height: 'min(680px, calc(100vh - 88px))' }}
+        >
+          <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-950 shadow-2xl shadow-black/50">
+            <div className="flex items-center justify-between gap-3 border-b border-zinc-800 px-4 py-3">
+              <div className="flex min-w-0 items-center gap-3">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#0099FF]/15 text-[#0099FF]">
+                  <Sparkles size={17} />
+                </div>
+                <div className="min-w-0">
+                  <div className="truncate text-sm font-medium text-zinc-100">{assistantTitle}</div>
+                  <div className="truncate text-[11px] text-zinc-500">{viewLabel} · {providerLabel}</div>
+                </div>
+              </div>
+              <div className="flex shrink-0 items-center gap-1">
+                {messages.length > 0 && (
+                  <>
+                    <button
+                      onClick={copyChat}
+                      aria-label={copied ? tText('Copied') : tText('Copy')}
+                      title={copied ? tText('Copied') : tText('Copy')}
+                      className="flex h-8 w-8 items-center justify-center rounded-lg text-zinc-500 transition-colors hover:bg-zinc-900 hover:text-zinc-200"
+                    >
+                      {copied ? <Check size={14} className="text-green-400" /> : <Copy size={14} />}
+                    </button>
+                    <button
+                      onClick={exportChat}
+                      aria-label={tText('Export')}
+                      title={tText('Export')}
+                      className="flex h-8 w-8 items-center justify-center rounded-lg text-zinc-500 transition-colors hover:bg-zinc-900 hover:text-zinc-200"
+                    >
+                      <Download size={14} />
+                    </button>
+                  </>
+                )}
+                <button
+                  onClick={() => setOpen(false)}
+                  aria-label={tText('Close')}
+                  title={tText('Close')}
+                  className="flex h-8 w-8 items-center justify-center rounded-lg text-zinc-500 transition-colors hover:bg-zinc-900 hover:text-zinc-200"
+                >
+                  <X size={15} />
+                </button>
+              </div>
+            </div>
+
+            <div className="border-b border-zinc-800 px-4 py-3">
+              <div className="mb-2 flex items-center gap-1.5 text-[11px] font-medium text-zinc-400">
+                <Key size={13} className="text-zinc-500" />
+                <span className="truncate">{localReady ? tText('Local ChatGPT OAuth') : tText('OpenRouter API Key')}</span>
+              </div>
+              {localReady ? (
+                <div className="rounded-lg border border-green-500/20 bg-green-500/10 px-3 py-2 text-xs text-green-300">
+                  {tText('Connected to local ChatGPT OAuth server')}
+                  {localAIStatus?.model && <span className="text-green-500"> · {localAIStatus.model}</span>}
+                </div>
+              ) : (
+                <>
+                  <input
+                    type="password"
+                    value={apiKey}
+                    onChange={e => saveKey(e.target.value)}
+                    placeholder="sk-or-..."
+                    className="w-full rounded-lg border border-zinc-800 bg-zinc-900 px-3 py-2 text-sm text-zinc-100 placeholder-zinc-600 focus:border-zinc-600 focus:outline-none"
+                  />
+                  <p className="mt-2 text-[10px] text-zinc-600">{tText('Stored in session memory only. Chat cached for 10 min.')}</p>
+                </>
+              )}
+            </div>
+
+            <div className="flex-1 space-y-3 overflow-y-auto px-4 py-4">
+              {error && (
+                <div className="rounded-lg border border-red-900/40 bg-red-950/30 px-3 py-2 text-sm text-red-400">{error}</div>
+              )}
+
+              {hasKey && messages.length === 0 && !loading && (
+                <div>
+                  <h3 className="mb-3 text-sm font-medium text-zinc-400">{tText('Ask about your health data')}</h3>
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                    {PREDEFINED_QUESTIONS.map(q => (
+                      <button
+                        key={q.label}
+                        onClick={() => ask(localizeQuestion(q.question, locale))}
+                        className="min-h-[86px] rounded-lg border border-zinc-800 bg-zinc-900 px-3 py-3 text-left text-xs leading-relaxed text-zinc-300 transition-colors hover:border-zinc-700 hover:bg-zinc-800"
+                      >
+                        <MessageCircle size={14} className="mb-1.5 text-[#0099FF]" />
+                        {tText(q.label)}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {messages.map((m, i) => (
+                <div key={i} className={`rounded-xl px-4 py-3 ${
+                  m.role === 'user'
+                    ? 'ml-10 border border-[#0099FF]/20 bg-[#0099FF]/10'
+                    : 'border border-zinc-800 bg-zinc-900'
+                }`}>
+                  {m.role === 'assistant' && (
+                    <div className="mb-2 flex items-center gap-1.5">
+                      <Sparkles size={12} className="text-[#0099FF]" />
+                      <span className="text-[11px] text-[#0099FF]">{localReady ? 'ChatGPT' : 'Claude'}</span>
+                    </div>
+                  )}
+                  <div className={`whitespace-pre-wrap text-sm leading-relaxed ${
+                    m.role === 'user' ? 'text-zinc-200' : 'text-zinc-300'
+                  }`}>
+                    {m.role === 'assistant' && m.toolRefs && m.toolRefs.length > 0 && (
+                      <DataReferences refs={m.toolRefs} locale={locale} />
+                    )}
+                    {m.content}
+                  </div>
+                </div>
+              ))}
+
+              {streamText && (
+                <div className="rounded-xl border border-zinc-800 bg-zinc-900 px-4 py-3">
+                  <div className="mb-2 flex items-center gap-1.5">
+                    <Sparkles size={12} className="text-[#0099FF]" />
+                    <span className="text-[11px] text-[#0099FF]">{localReady ? 'ChatGPT' : 'Claude'}</span>
+                  </div>
+                  {pendingToolRefs.length > 0 && <DataReferences refs={pendingToolRefs} locale={locale} />}
+                  <div className="whitespace-pre-wrap text-sm leading-relaxed text-zinc-300">
+                    {streamText}
+                    <span className="ml-0.5 inline-block h-4 w-1.5 animate-pulse bg-[#0099FF]" />
+                  </div>
+                </div>
+              )}
+
+              {loading && !streamText && (
+                <div className="rounded-xl border border-zinc-800 bg-zinc-900 px-4 py-3">
+                  <div className="flex items-center gap-2">
+                    <Loader2 size={14} className="animate-spin text-[#0099FF]" />
+                    <span className="text-sm text-zinc-500">{loadingText}</span>
+                  </div>
+                  {pendingToolRefs.length > 0 && (
+                    <div className="mt-3">
+                      <DataReferences refs={pendingToolRefs} locale={locale} />
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {!hasKey && (
+                <div className="py-10 text-center">
+                  <Sparkles size={34} className="mx-auto mb-4 text-zinc-700" />
+                  <div className="text-sm text-zinc-400">{tText('Start the local AI server or enter your OpenRouter API key above')}</div>
+                  <div className="mt-1 text-xs text-zinc-600">{tText('Run npm run ai:login and npm run ai:server to use ChatGPT OAuth locally')}</div>
+                </div>
+              )}
+
+              <div ref={bottomRef} />
+            </div>
+
+            <div className="border-t border-zinc-800 px-4 py-3">
+              {hasKey && lastFollowUps.length > 0 && !loading && (
+                <div className="mb-2 flex flex-wrap gap-2">
+                  {lastFollowUps.map(q => (
+                    <button
+                      key={q}
+                      onClick={() => ask(q)}
+                      className="rounded-lg border border-zinc-800 bg-zinc-900 px-2.5 py-1.5 text-xs text-zinc-400 transition-colors hover:border-zinc-700 hover:text-zinc-200"
+                    >
+                      {q}
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {hasKey && (
+                <div className="flex gap-2">
+                  <input
+                    value={customQ}
+                    onChange={e => setCustomQ(e.target.value)}
+                    onKeyDown={e => e.key === 'Enter' && handleCustomSubmit()}
+                    placeholder={locale === 'zh' ? `询问${viewLabel}相关问题...` : `Ask about ${viewLabel}...`}
+                    disabled={loading}
+                    className="min-w-0 flex-1 rounded-lg border border-zinc-800 bg-zinc-900 px-3 py-2 text-sm text-zinc-100 placeholder-zinc-600 focus:border-zinc-600 focus:outline-none"
+                  />
+                  <button
+                    onClick={handleCustomSubmit}
+                    disabled={loading || !customQ.trim()}
+                    aria-label={locale === 'zh' ? '发送' : 'Send'}
+                    className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg transition-colors ${
+                      loading || !customQ.trim()
+                        ? 'bg-zinc-900 text-zinc-700'
+                        : 'bg-[#0099FF] text-white hover:bg-[#168fe0]'
+                    }`}
+                  >
+                    <Send size={15} />
+                  </button>
+                </div>
+              )}
+
+              {messages.length > 0 && !loading && (
+                <button
+                  onClick={() => { setMessages([]); setPendingToolRefs([]); localStorage.removeItem(CACHE_KEY) }}
+                  className="mt-2 text-xs text-zinc-600 transition-colors hover:text-zinc-400"
+                >
+                  {tText('Start new conversation')}
+                </button>
+              )}
+            </div>
+          </div>
         </div>
       )}
-    </div>
+    </>
   )
 }

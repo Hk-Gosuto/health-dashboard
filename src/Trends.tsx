@@ -4,6 +4,7 @@ import { computeMultiWindowTrends, type MultiWindowInput, type MultiWindowTrend,
 import { COLORS, Sparkline, SubsectionHeader, fmt } from './ui'
 import { ArrowUp, ArrowDown, Minus, Heart, Waves, Wind, Moon, Droplets, Scale, Footprints, Flame, MapPin, Dumbbell, Activity } from 'lucide-react'
 import type { ReactNode } from 'react'
+import { useI18n } from './i18n'
 
 interface Props {
   data: HealthData
@@ -132,6 +133,7 @@ const METRIC_STYLE: Record<string, { icon: ReactNode; color: string }> = {
 }
 
 function TrendCard({ trend }: { trend: MultiWindowTrend }) {
+  const { tText } = useI18n()
   const decimals = trend.unit === 'kcal' || trend.unit === '/day' || trend.unit === 'min' || trend.unit === 'br/min' ? 0 : 1
   // Shared y-scale across all windows so visual magnitudes are honest.
   let sparkMin = Infinity, sparkMax = -Infinity
@@ -152,8 +154,8 @@ function TrendCard({ trend }: { trend: MultiWindowTrend }) {
           ) : (
             <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: accent }} />
           )}
-          <span className="truncate">{trend.metric}</span>
-          <span className="text-[10px] uppercase tracking-wider text-zinc-600 shrink-0 ml-1">{CATEGORY_LABEL[trend.category]}</span>
+          <span className="truncate">{tText(trend.metric)}</span>
+          <span className="text-[10px] uppercase tracking-wider text-zinc-600 shrink-0 ml-1">{tText(CATEGORY_LABEL[trend.category])}</span>
         </div>
         <div className="text-xs font-mono text-zinc-500 shrink-0">
           <span className="text-zinc-300">{fmt(trend.latest, decimals)}</span> {trend.unit}
@@ -164,7 +166,7 @@ function TrendCard({ trend }: { trend: MultiWindowTrend }) {
           const color = rowColor(row)
           return (
             <div key={row.days} className="grid grid-cols-[60px_1fr_96px] items-center gap-3 py-2">
-              <div className="text-xs text-zinc-500 tabular-nums">{row.days} days</div>
+              <div className="text-xs text-zinc-500 tabular-nums">{row.days} {tText('days')}</div>
               <div className="flex items-center gap-1.5 text-xs font-mono tabular-nums" style={{ color }}>
                 <TrendArrow direction={row.direction} />
                 <span>{formatDelta(row, trend.unit)}</span>
@@ -182,6 +184,7 @@ function TrendCard({ trend }: { trend: MultiWindowTrend }) {
 }
 
 export default function Trends({ data, metrics }: Props) {
+  const { tText } = useI18n()
   const trends = useMemo(() => {
     const inputs = buildInputs(data, metrics)
     return computeMultiWindowTrends(inputs)
@@ -190,7 +193,7 @@ export default function Trends({ data, metrics }: Props) {
   if (trends.length === 0) {
     return (
       <div className="text-center py-12 text-zinc-500 text-sm">
-        Not enough history yet to compute trends. Come back after a couple of weeks of data.
+        {tText('Not enough history yet to compute trends. Come back after a couple of weeks of data.')}
       </div>
     )
   }
@@ -202,7 +205,7 @@ export default function Trends({ data, metrics }: Props) {
 
   return (
     <div className="space-y-4">
-      <SubsectionHeader title="Trends" description="How your key metrics are moving across multiple time windows. Each row compares the recent window to the window before it." />
+      <SubsectionHeader title={tText('Trends')} description={tText('How your key metrics are moving across multiple time windows. Each row compares the recent window to the window before it.')} />
       <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-3">
         {ordered.map(t => <TrendCard key={t.metric} trend={t} />)}
       </div>

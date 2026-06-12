@@ -7,6 +7,7 @@ import {
 import type { CardioRecord, DailyHR, DailyMetrics } from './types'
 import type { Granularity } from './analysis'
 import { StatBox, chartMargin, COLORS, shortDate, Legend, AISummaryButton, TabHeader, useChartTheme, ChartTooltip } from './ui'
+import { useI18n } from './i18n'
 
 // VO2 Max fitness age estimation (ACSM normative data for males)
 const VO2_AGE_TABLE = [
@@ -108,6 +109,7 @@ interface Props {
 }
 
 export default function Cardio({ cardioRecords, dailyHR, metrics, dob, cutoffDate, granularity: _granularity }: Props) {
+  const { tText } = useI18n()
   const ct = useChartTheme()
   const filtered = useMemo(() => {
     if (!cutoffDate) return cardioRecords
@@ -301,17 +303,17 @@ export default function Cardio({ cardioRecords, dailyHR, metrics, dob, cutoffDat
   }, [avgRestingHR, avgHRV, latestVO2, latestRecovery, age])
 
   const scoreColor = (s: number) => s >= 80 ? '#22c55e' : s >= 60 ? '#3b82f6' : s >= 40 ? '#f97316' : '#ef4444'
-  const scoreLabel = (s: number) => s >= 80 ? 'Excellent' : s >= 60 ? 'Good' : s >= 40 ? 'Fair' : 'Needs Work'
+  const scoreLabel = (s: number) => s >= 80 ? tText('Excellent') : s >= 60 ? tText('Good') : s >= 40 ? tText('Fair') : tText('Needs Work')
 
   const hasData = vo2Data.length > 0 || walkingHRData.length > 0 || hrRecoveryData.length > 0 || weeklyHRRange.length > 0
 
   if (!hasData) {
-    return <div className="text-zinc-500 text-center py-20">No cardiovascular data found.</div>
+    return <div className="text-zinc-500 text-center py-20">{tText('No cardiovascular data found.')}</div>
   }
 
   return (
     <div className="space-y-6">
-      <TabHeader title="Cardio" description="Heart rate, HRV, VO2 Max, and cardiovascular fitness trends from your Apple Watch." />
+      <TabHeader title={tText('Cardio')} description={tText('Heart rate, HRV, VO2 Max, and cardiovascular fitness trends from your Apple Watch.')} />
 
       {/* Cardio Fitness Gauge + Stats */}
       <div className="grid grid-cols-1 lg:grid-cols-[auto_1fr] gap-4">
@@ -335,7 +337,7 @@ export default function Cardio({ cardioRecords, dailyHR, metrics, dob, cutoffDat
               </div>
             </div>
             <div className="text-sm font-medium mt-2" style={{ color: scoreColor(cardioScore.score) }}>{scoreLabel(cardioScore.score)}</div>
-            <div className="text-[10px] text-zinc-600 mt-1">Cardio Fitness</div>
+            <div className="text-[10px] text-zinc-600 mt-1">{tText('Cardio Fitness')}</div>
             {/* Sub-scores */}
             <div className="mt-3 w-full space-y-1.5">
               {cardioScore.components.map(c => (
@@ -354,11 +356,11 @@ export default function Cardio({ cardioRecords, dailyHR, metrics, dob, cutoffDat
         {/* Stat boxes */}
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 content-start">
           {latestVO2 !== null && (
-            <StatBox label="VO2 Max" value={`${latestVO2}`} unit="mL/kg/min" color={COLORS.green} sub={vo2Category ?? undefined} />
+            <StatBox label={tText('VO2 Max')} value={`${latestVO2}`} unit="mL/kg/min" color={COLORS.green} sub={vo2Category ? tText(vo2Category) : undefined} />
           )}
           {fitnessAge !== null && (
             <StatBox
-              label="Fitness Age"
+              label={tText('Fitness Age')}
               value={`${fitnessAge}`}
               unit="yrs"
               color={COLORS.purple}
@@ -366,16 +368,16 @@ export default function Cardio({ cardioRecords, dailyHR, metrics, dob, cutoffDat
             />
           )}
           {avgRestingHR !== null && (
-            <StatBox label="Resting HR" value={`${avgRestingHR}`} unit="bpm" color={COLORS.red} sub={delta(avgRestingHR, prevRestingHR) || 'Avg last 30d'} />
+            <StatBox label={tText('Resting HR')} value={`${avgRestingHR}`} unit="bpm" color={COLORS.red} sub={delta(avgRestingHR, prevRestingHR) || tText('Avg last 30d')} />
           )}
           {avgWalkHR !== null && (
-            <StatBox label="Walking HR" value={`${avgWalkHR}`} unit="bpm" color={COLORS.orange} sub={delta(avgWalkHR, prevAvgWalkHR) || 'Avg last 30d'} />
+            <StatBox label={tText('Walking HR')} value={`${avgWalkHR}`} unit="bpm" color={COLORS.orange} sub={delta(avgWalkHR, prevAvgWalkHR) || tText('Avg last 30d')} />
           )}
           {avgHRV !== null && (
-            <StatBox label="HRV" value={`${avgHRV}`} unit="ms" color={COLORS.purple} sub={delta(avgHRV, prevHRV) || 'Avg last 30d'} />
+            <StatBox label={tText('HRV')} value={`${avgHRV}`} unit="ms" color={COLORS.purple} sub={delta(avgHRV, prevHRV) || tText('Avg last 30d')} />
           )}
           {latestRecovery !== null && (
-            <StatBox label="HR Recovery" value={`${latestRecovery}`} unit="bpm" color={COLORS.blue} sub={recoveryRating(latestRecovery)} />
+            <StatBox label={tText('HR Recovery')} value={`${latestRecovery}`} unit="bpm" color={COLORS.blue} sub={tText(recoveryRating(latestRecovery))} />
           )}
         </div>
       </div>
@@ -385,10 +387,10 @@ export default function Cardio({ cardioRecords, dailyHR, metrics, dob, cutoffDat
         <div className="bg-zinc-900 rounded-xl border border-zinc-800 p-4">
           <div className="flex items-start justify-between mb-1">
             <div>
-              <h3 className="text-sm font-medium text-zinc-300">VO2 Max & Fitness Age</h3>
-              <p className="text-xs text-zinc-500 mt-0.5">Higher VO2 Max = lower fitness age. Based on ACSM normative data.</p>
+              <h3 className="text-sm font-medium text-zinc-300">{tText('VO2 Max & Fitness Age')}</h3>
+              <p className="text-xs text-zinc-500 mt-0.5">{tText('Higher VO2 Max = lower fitness age')}.</p>
             </div>
-            <AISummaryButton title="VO2 Max & Fitness Age" description="Higher VO2 Max = lower fitness age" chartData={vo2WithAge} />
+            <AISummaryButton title={tText('VO2 Max & Fitness Age')} description={tText('Higher VO2 Max = lower fitness age')} chartData={vo2WithAge} />
           </div>
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%" minWidth={0} debounce={1}>
@@ -414,9 +416,9 @@ export default function Cardio({ cardioRecords, dailyHR, metrics, dob, cutoffDat
             </ResponsiveContainer>
           </div>
           <div className="flex gap-4 justify-center mt-2">
-            <Legend color={COLORS.green} label="VO2 Max" />
-            <Legend color={COLORS.purple} label="Fitness Age" dashed />
-            <Legend color="#71717a" label={`Actual Age (${age})`} dashed />
+            <Legend color={COLORS.green} label={tText('VO2 Max')} />
+            <Legend color={COLORS.purple} label={tText('Fitness Age')} dashed />
+            <Legend color="#71717a" label={`${tText('Actual Age')} (${age})`} dashed />
           </div>
         </div>
       )}
@@ -426,10 +428,10 @@ export default function Cardio({ cardioRecords, dailyHR, metrics, dob, cutoffDat
         <div className="bg-zinc-900 rounded-xl border border-zinc-800 p-4">
           <div className="flex items-start justify-between mb-1">
             <div>
-              <h3 className="text-sm font-medium text-zinc-300">Resting HR & HRV</h3>
-              <p className="text-xs text-zinc-500 mt-0.5">These typically move in opposite directions — lower resting HR with higher HRV signals good cardiovascular fitness.</p>
+              <h3 className="text-sm font-medium text-zinc-300">{tText('Resting HR & HRV')}</h3>
+              <p className="text-xs text-zinc-500 mt-0.5">{tText('These typically move in opposite directions — lower resting HR with higher HRV signals good cardiovascular fitness.')}</p>
             </div>
-            <AISummaryButton title="Resting HR & HRV" description="Dual axis: lower HR + higher HRV = better fitness" chartData={hrHrvOverlay} />
+            <AISummaryButton title={tText('Resting HR & HRV')} description={tText('Dual axis: lower HR + higher HRV = better fitness')} chartData={hrHrvOverlay} />
           </div>
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%" minWidth={0} debounce={1}>
@@ -460,11 +462,11 @@ export default function Cardio({ cardioRecords, dailyHR, metrics, dob, cutoffDat
             </ResponsiveContainer>
           </div>
           <div className="flex gap-4 justify-center mt-2">
-            <Legend color={COLORS.red} label="Resting HR (bpm)" />
-            <Legend color={COLORS.purple} label="HRV (ms)" />
+            <Legend color={COLORS.red} label={tText('Resting HR (bpm)')} />
+            <Legend color={COLORS.purple} label={tText('HRV (ms)')} />
             <div className="flex items-center gap-1.5 text-xs text-zinc-600">
               <div className="w-4 h-2 rounded-sm bg-green-500/10 border border-green-500/20" />
-              Normal HR range
+              {tText('Normal HR range')}
             </div>
           </div>
         </div>
@@ -476,10 +478,10 @@ export default function Cardio({ cardioRecords, dailyHR, metrics, dob, cutoffDat
           <div className="bg-zinc-900 rounded-xl border border-zinc-800 p-4">
             <div className="flex items-start justify-between mb-1">
               <div>
-                <h3 className="text-sm font-medium text-zinc-300">Walking Heart Rate</h3>
-                <p className="text-xs text-zinc-500 mt-0.5">Weekly average. A declining trend indicates improving fitness.</p>
+                <h3 className="text-sm font-medium text-zinc-300">{tText('Walking Heart Rate')}</h3>
+                <p className="text-xs text-zinc-500 mt-0.5">{tText('Weekly average. A declining trend indicates improving fitness.')}</p>
               </div>
-              <AISummaryButton title="Walking Heart Rate" description="Weekly average walking HR" chartData={weeklyWalkingHR} />
+              <AISummaryButton title={tText('Walking Heart Rate')} description={tText('Weekly average walking HR')} chartData={weeklyWalkingHR} />
             </div>
             <div className="h-56">
               <ResponsiveContainer width="100%" height="100%" minWidth={0} debounce={1}>
@@ -493,7 +495,7 @@ export default function Cardio({ cardioRecords, dailyHR, metrics, dob, cutoffDat
                   <CartesianGrid strokeDasharray="3 3" stroke={ct.grid} />
                   <XAxis dataKey="week" tick={{ fontSize: 10, fill: ct.tick }} tickFormatter={shortDate} />
                   <YAxis domain={['auto', 'auto']} tick={{ fontSize: 10, fill: ct.tick }} />
-                  <Tooltip content={<ChartTooltip formatter={(v) => [`${v} bpm`, 'Walking HR']} />} />
+                  <Tooltip content={<ChartTooltip formatter={(v) => [`${v} bpm`, tText('Walking HR')]} />} />
                   <Area type="monotone" dataKey="value" stroke={COLORS.orange} fill="url(#walkingHRGrad)" strokeWidth={1.5} dot={false} />
                 </AreaChart>
               </ResponsiveContainer>
@@ -506,18 +508,18 @@ export default function Cardio({ cardioRecords, dailyHR, metrics, dob, cutoffDat
           <div className="bg-zinc-900 rounded-xl border border-zinc-800 p-4">
             <div className="flex items-start justify-between mb-1">
               <div>
-                <h3 className="text-sm font-medium text-zinc-300">Heart Rate Recovery</h3>
-                <p className="text-xs text-zinc-500 mt-0.5">BPM drop in first minute after exercise. The trend line shows your recovery direction.</p>
+                <h3 className="text-sm font-medium text-zinc-300">{tText('Heart Rate Recovery')}</h3>
+                <p className="text-xs text-zinc-500 mt-0.5">{tText('BPM drop in first minute after exercise. The trend line shows your recovery direction.')}</p>
               </div>
-              <AISummaryButton title="Heart Rate Recovery" description="BPM drop after exercise with trend" chartData={hrRecoveryData} />
+              <AISummaryButton title={tText('Heart Rate Recovery')} description={tText('BPM drop after exercise with trend')} chartData={hrRecoveryData} />
             </div>
             <div className="h-56">
               <ResponsiveContainer width="100%" height="100%" minWidth={0} debounce={1}>
                 <ComposedChart margin={chartMargin} data={hrRecoveryData}>
                   <CartesianGrid strokeDasharray="3 3" stroke={ct.grid} />
                   {/* Reference zones */}
-                  <ReferenceArea y1={20} y2={60} fill="#22c55e" fillOpacity={0.04} label={{ value: 'Good', position: 'insideTopLeft', fill: '#22c55e40', fontSize: 10 }} />
-                  <ReferenceArea y1={0} y2={12} fill="#ef4444" fillOpacity={0.04} label={{ value: 'Low', position: 'insideBottomLeft', fill: '#ef444440', fontSize: 10 }} />
+                  <ReferenceArea y1={20} y2={60} fill="#22c55e" fillOpacity={0.04} label={{ value: tText('Good'), position: 'insideTopLeft', fill: '#22c55e40', fontSize: 10 }} />
+                  <ReferenceArea y1={0} y2={12} fill="#ef4444" fillOpacity={0.04} label={{ value: tText('Low'), position: 'insideBottomLeft', fill: '#ef444440', fontSize: 10 }} />
                   <ReferenceLine y={20} stroke="#22c55e" strokeDasharray="3 3" strokeOpacity={0.3} />
                   <ReferenceLine y={12} stroke="#ef4444" strokeDasharray="3 3" strokeOpacity={0.3} />
                   <XAxis dataKey="date" tick={{ fontSize: 10, fill: ct.tick }} tickFormatter={shortDate} />
@@ -537,10 +539,10 @@ export default function Cardio({ cardioRecords, dailyHR, metrics, dob, cutoffDat
         <div className="bg-zinc-900 rounded-xl border border-zinc-800 p-4">
           <div className="flex items-start justify-between mb-1">
             <div>
-              <h3 className="text-sm font-medium text-zinc-300">Heart Rate Range</h3>
-              <p className="text-xs text-zinc-500 mt-0.5">Weekly min, average, and max. A wider band shows more cardiac flexibility.</p>
+              <h3 className="text-sm font-medium text-zinc-300">{tText('Heart Rate Range')}</h3>
+              <p className="text-xs text-zinc-500 mt-0.5">{tText('Weekly min, average, and max. A wider band shows more cardiac flexibility.')}</p>
             </div>
-            <AISummaryButton title="Heart Rate Range" description="Weekly min, avg, max HR band" chartData={weeklyHRRange} />
+            <AISummaryButton title={tText('Heart Rate Range')} description={tText('Weekly min, avg, max HR band')} chartData={weeklyHRRange} />
           </div>
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%" minWidth={0} debounce={1}>
@@ -562,9 +564,9 @@ export default function Cardio({ cardioRecords, dailyHR, metrics, dob, cutoffDat
             </ResponsiveContainer>
           </div>
           <div className="flex gap-4 justify-center mt-2">
-            <Legend color="#ef4444" label="Max HR" />
-            <Legend color="#f97316" label="Avg HR" />
-            <Legend color="#3b82f6" label="Min HR" />
+            <Legend color="#ef4444" label={tText('Max HR')} />
+            <Legend color="#f97316" label={tText('Avg HR')} />
+            <Legend color="#3b82f6" label={tText('Min HR')} />
           </div>
         </div>
       )}
@@ -574,10 +576,10 @@ export default function Cardio({ cardioRecords, dailyHR, metrics, dob, cutoffDat
         <div className="bg-zinc-900 rounded-xl border border-zinc-800 p-4">
           <div className="flex items-start justify-between mb-1">
             <div>
-              <h3 className="text-sm font-medium text-zinc-300">Cardiac Efficiency</h3>
-              <p className="text-xs text-zinc-500 mt-0.5">Walking HR divided by resting HR. A lower ratio means your heart handles exertion more efficiently.</p>
+              <h3 className="text-sm font-medium text-zinc-300">{tText('Cardiac Efficiency')}</h3>
+              <p className="text-xs text-zinc-500 mt-0.5">{tText('Walking HR divided by resting HR. A lower ratio means your heart handles exertion more efficiently.')}</p>
             </div>
-            <AISummaryButton title="Cardiac Efficiency" description="Walking HR / Resting HR ratio — lower is better" chartData={efficiencyData} />
+            <AISummaryButton title={tText('Cardiac Efficiency')} description={tText('Walking HR / Resting HR ratio — lower is better')} chartData={efficiencyData} />
           </div>
           <div className="h-56">
             <ResponsiveContainer width="100%" height="100%" minWidth={0} debounce={1}>

@@ -8,6 +8,7 @@ import type { GpxPoint } from './types'
 import 'leaflet/dist/leaflet.css'
 import { chartMargin, AISummaryButton, TabHeader, useChartTheme, ChartTooltip } from './ui'
 
+import { translateText as tText } from './i18n'
 interface ParsedRoute {
   filename: string
   date: string
@@ -226,15 +227,15 @@ export default function RouteComparison({ gpxFiles }: { gpxFiles: Map<string, Fi
     }))
   }, [group])
 
-  if (loading) return <div className="text-zinc-400 animate-pulse text-center py-12">Analyzing routes...</div>
+  if (loading) return <div className="text-zinc-400 animate-pulse text-center py-12">{tText('Analyzing routes...')}</div>
 
   if (groups.length === 0) {
-    return <div className="text-zinc-500 text-center py-12">No repeated routes found. Routes need similar start points and distances to match.</div>
+    return <div className="text-zinc-500 text-center py-12">{tText('No repeated routes found. Routes need similar start points and distances to match.')}</div>
   }
 
   return (
     <div className="space-y-4">
-      <TabHeader title="Route Comparison" description="Compare GPS routes side by side — pace, elevation, and speed profiles." />
+      <TabHeader title={tText('Route Comparison')} description={tText('Compare GPS routes side by side — pace, elevation, and speed profiles.')} />
       {/* Group selector */}
       <div className="flex gap-2 overflow-x-auto pb-1">
         {groups.map((g, i) => (
@@ -304,10 +305,10 @@ export default function RouteComparison({ gpxFiles }: { gpxFiles: Map<string, Fi
             <div className="bg-zinc-900 rounded-xl border border-zinc-800 p-4">
               <div className="flex items-start justify-between mb-1">
                 <div>
-                  <h3 className="text-sm font-medium text-zinc-300">Pace Over Time</h3>
-                  <p className="text-xs text-zinc-500 mt-0.5">Lower pace = faster. Shows improvement over repeated runs.</p>
+                  <h3 className="text-sm font-medium text-zinc-300">{tText('Pace Over Time')}</h3>
+                  <p className="text-xs text-zinc-500 mt-0.5">{tText('Lower pace = faster. Shows improvement over repeated runs.')}</p>
                 </div>
-                <AISummaryButton title="Pace Over Time" description="Lower pace = faster. Shows improvement over repeated runs." chartData={paceData} />
+                <AISummaryButton title={tText('Pace Over Time')} description={tText('Lower pace = faster. Shows improvement over repeated runs.')} chartData={paceData} />
               </div>
               <div className="h-56">
                 <ResponsiveContainer width="100%" height="100%" minWidth={0} debounce={1}>
@@ -337,10 +338,10 @@ export default function RouteComparison({ gpxFiles }: { gpxFiles: Map<string, Fi
             <div className="bg-zinc-900 rounded-xl border border-zinc-800 p-4">
               <div className="flex items-start justify-between mb-1">
                 <div>
-                  <h3 className="text-sm font-medium text-zinc-300">Speed Over Time</h3>
-                  <p className="text-xs text-zinc-500 mt-0.5">Average speed for each run of this route.</p>
+                  <h3 className="text-sm font-medium text-zinc-300">{tText('Speed Over Time')}</h3>
+                  <p className="text-xs text-zinc-500 mt-0.5">{tText('Average speed for each run of this route.')}</p>
                 </div>
-                <AISummaryButton title="Speed Over Time" description="Average speed for each run of this route." chartData={paceData} />
+                <AISummaryButton title={tText('Speed Over Time')} description={tText('Average speed for each run of this route.')} chartData={paceData} />
               </div>
               <div className="h-56">
                 <ResponsiveContainer width="100%" height="100%" minWidth={0} debounce={1}>
@@ -362,17 +363,17 @@ export default function RouteComparison({ gpxFiles }: { gpxFiles: Map<string, Fi
 
           {/* Run details table */}
           <div className="bg-zinc-900 rounded-xl border border-zinc-800 p-4">
-            <h3 className="text-sm font-medium text-zinc-300 mb-3">Run Comparison</h3>
+            <h3 className="text-sm font-medium text-zinc-300 mb-3">{tText('Run Comparison')}</h3>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="text-zinc-500 text-xs border-b border-zinc-800">
-                    <th className="text-left py-2 pr-4">Date</th>
-                    <th className="text-right py-2 px-3">Distance</th>
-                    <th className="text-right py-2 px-3">Time</th>
-                    <th className="text-right py-2 px-3">Pace</th>
-                    <th className="text-right py-2 px-3">Speed</th>
-                    <th className="text-right py-2 pl-3">Elevation</th>
+                    <th className="text-left py-2 pr-4">{tText('Date')}</th>
+                    <th className="text-right py-2 px-3">{tText('Distance')}</th>
+                    <th className="text-right py-2 px-3">{tText('Time')}</th>
+                    <th className="text-right py-2 px-3">{tText('Pace')}</th>
+                    <th className="text-right py-2 px-3">{tText('Speed')}</th>
+                    <th className="text-right py-2 pl-3">{tText('Elevation')}</th>
                   </tr>
                 </thead>
                 <tbody>

@@ -313,6 +313,8 @@ export interface ParseComplete {
     dailyMobility: DailyMobility[]
     runningDynamics: RunningDynamicsRecord[]
     exportDate: string
+    gpxFiles?: [string, File][]
+    ecgFiles?: [string, File][]
   }
 }
 

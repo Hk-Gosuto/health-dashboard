@@ -6,6 +6,7 @@ import {
 import type { RunningDynamicsRecord } from './types'
 import { StatBox, chartMargin, COLORS, shortDate, AISummaryButton, TabHeader, Legend, fmt, useChartTheme, ChartTooltip } from './ui'
 
+import { translateText as tText } from './i18n'
 interface Props {
   runningDynamics: RunningDynamicsRecord[]
   cutoffDate: string
@@ -91,20 +92,20 @@ export default function RunningDynamics({ runningDynamics, cutoffDate }: Props) 
   const hasData = powerData.length > 0 || speedData.length > 0 || vertOscData.length > 0
 
   if (!hasData) {
-    return <div className="text-zinc-500 text-center py-20">No running dynamics data found.</div>
+    return <div className="text-zinc-500 text-center py-20">{tText('No running dynamics data found.')}</div>
   }
 
   return (
     <div className="space-y-6">
-      <TabHeader title="Running Dynamics" description="Power, pace, cadence efficiency, and form metrics captured during runs by your Apple Watch." />
+      <TabHeader title={tText('Running Dynamics')} description={tText('Power, pace, cadence efficiency, and form metrics captured during runs by your Apple Watch.')} />
 
       {/* Summary */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-        {avgPower !== null && <StatBox label="Avg Power" value={fmt(avgPower, 0)} unit="W" color={COLORS.orange} sub="30d avg" />}
-        {avgSpeed !== null && <StatBox label="Avg Pace" value={msToPace(avgSpeed)} unit="min/km" color={COLORS.blue} sub="30d avg" />}
-        {avgVertOsc !== null && <StatBox label="Vert. Oscillation" value={fmt(avgVertOsc, 1)} unit="cm" color={COLORS.purple} sub="30d avg" />}
-        {avgGCT !== null && <StatBox label="Ground Contact" value={fmt(avgGCT, 0)} unit="ms" color={COLORS.green} sub="30d avg" />}
-        {avgStride !== null && <StatBox label="Stride Length" value={fmt(avgStride, 2)} unit="m" color={COLORS.cyan} sub="30d avg" />}
+        {avgPower !== null && <StatBox label={tText('Avg Power')} value={fmt(avgPower, 0)} unit="W" color={COLORS.orange} sub={tText('30d avg')} />}
+        {avgSpeed !== null && <StatBox label={tText('Avg Pace')} value={msToPace(avgSpeed)} unit="min/km" color={COLORS.blue} sub={tText('30d avg')} />}
+        {avgVertOsc !== null && <StatBox label={tText('Vert. Oscillation')} value={fmt(avgVertOsc, 1)} unit="cm" color={COLORS.purple} sub={tText('30d avg')} />}
+        {avgGCT !== null && <StatBox label={tText('Ground Contact')} value={fmt(avgGCT, 0)} unit="ms" color={COLORS.green} sub={tText('30d avg')} />}
+        {avgStride !== null && <StatBox label={tText('Stride Length')} value={fmt(avgStride, 2)} unit="m" color={COLORS.cyan} sub={tText('30d avg')} />}
       </div>
 
       {/* Running Power */}
@@ -112,10 +113,10 @@ export default function RunningDynamics({ runningDynamics, cutoffDate }: Props) 
         <div className="bg-zinc-900 rounded-xl border border-zinc-800 p-4">
           <div className="flex items-start justify-between mb-1">
             <div>
-              <h3 className="text-sm font-medium text-zinc-300">Running Power</h3>
-              <p className="text-xs text-zinc-500 mt-0.5">Watts output during runs. Increasing power at the same pace indicates improving fitness.</p>
+              <h3 className="text-sm font-medium text-zinc-300">{tText('Running Power')}</h3>
+              <p className="text-xs text-zinc-500 mt-0.5">{tText('Watts output during runs. Increasing power at the same pace indicates improving fitness.')}</p>
             </div>
-            <AISummaryButton title="Running Power" description="Weekly average running power in watts" chartData={weeklyPower} />
+            <AISummaryButton title={tText('Running Power')} description={tText('Weekly average running power in watts')} chartData={weeklyPower} />
           </div>
           <div className="h-56">
             <ResponsiveContainer width="100%" height="100%" minWidth={0} debounce={1}>
@@ -143,10 +144,10 @@ export default function RunningDynamics({ runningDynamics, cutoffDate }: Props) 
           <div className="bg-zinc-900 rounded-xl border border-zinc-800 p-4">
             <div className="flex items-start justify-between mb-1">
               <div>
-                <h3 className="text-sm font-medium text-zinc-300">Running Pace</h3>
-                <p className="text-xs text-zinc-500 mt-0.5">Weekly average speed. Higher speed = faster pace.</p>
+                <h3 className="text-sm font-medium text-zinc-300">{tText('Running Pace')}</h3>
+                <p className="text-xs text-zinc-500 mt-0.5">{tText('Weekly average speed. Higher speed = faster pace.')}</p>
               </div>
-              <AISummaryButton title="Running Pace" description="Weekly avg running speed" chartData={weeklySpeed} />
+              <AISummaryButton title={tText('Running Pace')} description={tText('Weekly avg running speed')} chartData={weeklySpeed} />
             </div>
             <div className="h-56">
               <ResponsiveContainer width="100%" height="100%" minWidth={0} debounce={1}>
@@ -173,10 +174,10 @@ export default function RunningDynamics({ runningDynamics, cutoffDate }: Props) 
           <div className="bg-zinc-900 rounded-xl border border-zinc-800 p-4">
             <div className="flex items-start justify-between mb-1">
               <div>
-                <h3 className="text-sm font-medium text-zinc-300">Stride Length</h3>
-                <p className="text-xs text-zinc-500 mt-0.5">Average stride during runs. Longer strides at the same cadence = faster pace.</p>
+                <h3 className="text-sm font-medium text-zinc-300">{tText('Stride Length')}</h3>
+                <p className="text-xs text-zinc-500 mt-0.5">{tText('Average stride during runs. Longer strides at the same cadence = faster pace.')}</p>
               </div>
-              <AISummaryButton title="Stride Length" description="Weekly average stride length" chartData={weeklyStride} />
+              <AISummaryButton title={tText('Stride Length')} description={tText('Weekly average stride length')} chartData={weeklyStride} />
             </div>
             <div className="h-56">
               <ResponsiveContainer width="100%" height="100%" minWidth={0} debounce={1}>
@@ -203,10 +204,10 @@ export default function RunningDynamics({ runningDynamics, cutoffDate }: Props) 
           <div className="bg-zinc-900 rounded-xl border border-zinc-800 p-4">
             <div className="flex items-start justify-between mb-1">
               <div>
-                <h3 className="text-sm font-medium text-zinc-300">Vertical Oscillation</h3>
-                <p className="text-xs text-zinc-500 mt-0.5">Bounce per stride. Less bounce = more efficient running form. Elite runners: 6-8 cm.</p>
+                <h3 className="text-sm font-medium text-zinc-300">{tText('Vertical Oscillation')}</h3>
+                <p className="text-xs text-zinc-500 mt-0.5">{tText('Bounce per stride. Less bounce = more efficient running form. Elite runners: 6-8 cm.')}</p>
               </div>
-              <AISummaryButton title="Vertical Oscillation" description="Weekly avg bounce per stride" chartData={weeklyVertOsc} />
+              <AISummaryButton title={tText('Vertical Oscillation')} description={tText('Weekly avg bounce per stride')} chartData={weeklyVertOsc} />
             </div>
             <div className="h-56">
               <ResponsiveContainer width="100%" height="100%" minWidth={0} debounce={1}>
@@ -234,10 +235,10 @@ export default function RunningDynamics({ runningDynamics, cutoffDate }: Props) 
           <div className="bg-zinc-900 rounded-xl border border-zinc-800 p-4">
             <div className="flex items-start justify-between mb-1">
               <div>
-                <h3 className="text-sm font-medium text-zinc-300">Ground Contact Time</h3>
-                <p className="text-xs text-zinc-500 mt-0.5">Time each foot spends on the ground. Shorter = more efficient. Elite: 160-200 ms.</p>
+                <h3 className="text-sm font-medium text-zinc-300">{tText('Ground Contact Time')}</h3>
+                <p className="text-xs text-zinc-500 mt-0.5">{tText('Time each foot spends on the ground. Shorter = more efficient. Elite: 160-200 ms.')}</p>
               </div>
-              <AISummaryButton title="Ground Contact Time" description="Weekly avg foot strike duration" chartData={weeklyGCT} />
+              <AISummaryButton title={tText('Ground Contact Time')} description={tText('Weekly avg foot strike duration')} chartData={weeklyGCT} />
             </div>
             <div className="h-56">
               <ResponsiveContainer width="100%" height="100%" minWidth={0} debounce={1}>
@@ -266,10 +267,10 @@ export default function RunningDynamics({ runningDynamics, cutoffDate }: Props) 
         <div className="bg-zinc-900 rounded-xl border border-zinc-800 p-4">
           <div className="flex items-start justify-between mb-1">
             <div>
-              <h3 className="text-sm font-medium text-zinc-300">Running Form Overview</h3>
-              <p className="text-xs text-zinc-500 mt-0.5">Power, ground contact time, and vertical oscillation together — trends in form efficiency over time.</p>
+              <h3 className="text-sm font-medium text-zinc-300">{tText('Running Form Overview')}</h3>
+              <p className="text-xs text-zinc-500 mt-0.5">{tText('Power, ground contact time, and vertical oscillation together — trends in form efficiency over time.')}</p>
             </div>
-            <AISummaryButton title="Running Form Overview" description="Multi-metric form efficiency" chartData={efficiencyOverlay} />
+            <AISummaryButton title={tText('Running Form Overview')} description={tText('Multi-metric form efficiency')} chartData={efficiencyOverlay} />
           </div>
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%" minWidth={0} debounce={1}>
@@ -290,9 +291,9 @@ export default function RunningDynamics({ runningDynamics, cutoffDate }: Props) 
             </ResponsiveContainer>
           </div>
           <div className="flex gap-4 justify-center mt-2">
-            <Legend color={COLORS.orange} label="Power (W)" />
-            <Legend color={COLORS.green} label="Ground Contact (ms)" />
-            <Legend color={COLORS.purple} label="Vert. Osc. (cm)" dashed />
+            <Legend color={COLORS.orange} label={tText('Power (W)')} />
+            <Legend color={COLORS.green} label={tText('Ground Contact (ms)')} />
+            <Legend color={COLORS.purple} label={tText('Vert. Osc. (cm)')} dashed />
           </div>
         </div>
       )}

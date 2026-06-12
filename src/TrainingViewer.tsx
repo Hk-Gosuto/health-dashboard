@@ -9,6 +9,7 @@ import { StatBox, AISummaryButton, useChartTheme, ChartTooltip } from './ui'
 import StrengthOverview, { SessionDetail, bestE1RMForExercise, ageFromDob } from './Strength'
 import type { HevyWorkout } from './types'
 
+import { translateText as tText } from './i18n'
 interface Props {
   data: HealthData
   hevy: HevyWorkout[] | null
@@ -140,12 +141,12 @@ function RouteDetail({ route }: { route: GpxRoute }) {
     <div className="space-y-4">
       {/* Stats */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <StatBox label="Distance" value={`${route.totalDistance.toFixed(2)} km`} />
-        <StatBox label="Duration" value={formatDuration(route.totalTime)} />
-        <StatBox label="Avg Pace" value={formatPace(route.avgSpeed)} />
-        <StatBox label="Elevation Gain" value={`${route.elevationGain} m`} />
-        <StatBox label="Avg Speed" value={`${route.avgSpeed.toFixed(1)} km/h`} />
-        <StatBox label="Max Speed" value={`${route.maxSpeed.toFixed(1)} km/h`} />
+        <StatBox label={tText('Distance')} value={`${route.totalDistance.toFixed(2)} km`} />
+        <StatBox label={tText('Duration')} value={formatDuration(route.totalTime)} />
+        <StatBox label={tText('Avg Pace')} value={formatPace(route.avgSpeed)} />
+        <StatBox label={tText('Elevation Gain')} value={`${route.elevationGain} m`} />
+        <StatBox label={tText('Avg Speed')} value={`${route.avgSpeed.toFixed(1)} km/h`} />
+        <StatBox label={tText('Max Speed')} value={`${route.maxSpeed.toFixed(1)} km/h`} />
       </div>
 
       {/* Map */}
@@ -170,9 +171,9 @@ function RouteDetail({ route }: { route: GpxRoute }) {
         <div className="bg-zinc-900 rounded-xl border border-zinc-800 p-4">
           <div className="flex items-start justify-between mb-1">
             <div>
-              <h4 className="text-sm font-medium text-zinc-300">Elevation & Speed Profile</h4>
+              <h4 className="text-sm font-medium text-zinc-300">{tText('Elevation & Speed Profile')}</h4>
             </div>
-            <AISummaryButton title="Elevation & Speed Profile" description="Elevation and speed along the route" chartData={profileData} />
+            <AISummaryButton title={tText('Elevation & Speed Profile')} description={tText('Elevation and speed along the route')} chartData={profileData} />
           </div>
           <div className="h-56">
             <ResponsiveContainer width="100%" height="100%" minWidth={0} debounce={1}>
@@ -256,8 +257,8 @@ function HRSessionChart({
   return (
     <div className="bg-zinc-900 rounded-xl border border-zinc-800 p-4">
       <div className="flex items-start justify-between mb-1">
-        <h4 className="text-sm font-medium text-zinc-300">Heart Rate During Session</h4>
-        <AISummaryButton title="Heart Rate During Session" description="Heart rate over the workout duration" chartData={hrData} />
+        <h4 className="text-sm font-medium text-zinc-300">{tText('Heart Rate During Session')}</h4>
+        <AISummaryButton title={tText('Heart Rate During Session')} description={tText('Heart rate over the workout duration')} chartData={hrData} />
       </div>
       <div className="h-56">
         <ResponsiveContainer width="100%" height="100%" minWidth={0} debounce={1}>
@@ -464,7 +465,7 @@ export default function TrainingViewer({ data, hevy }: Props) {
 
 
   if (loading) {
-    return <div className="flex items-center justify-center py-20"><div className="text-zinc-400 animate-pulse">Loading...</div></div>
+    return <div className="flex items-center justify-center py-20"><div className="text-zinc-400 animate-pulse">{tText('Loading...')}</div></div>
   }
 
   return (
@@ -540,21 +541,21 @@ export default function TrainingViewer({ data, hevy }: Props) {
           <div className="space-y-4">
             {/* Workout stats */}
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3">
-              <StatBox label="Type" value={selected.type} />
-              <StatBox label="Duration" value={`${selected.duration} min`} />
-              {selected.distance != null && selected.distance > 0 && <StatBox label="Distance" value={`${selected.distance.toFixed(2)} km`} />}
-              {selected.calories > 0 && <StatBox label="Active Calories" value={`${selected.calories} kcal`} />}
-              {selected.hrAvg && <StatBox label="Avg HR" value={`${selected.hrAvg} bpm`} />}
-              {selected.hrMin && selected.hrMax && <StatBox label="HR Range" value={`${selected.hrMin}–${selected.hrMax} bpm`} />}
+              <StatBox label={tText('Type')} value={selected.type} />
+              <StatBox label={tText('Duration')} value={`${selected.duration} min`} />
+              {selected.distance != null && selected.distance > 0 && <StatBox label={tText('Distance')} value={`${selected.distance.toFixed(2)} km`} />}
+              {selected.calories > 0 && <StatBox label={tText('Active Calories')} value={`${selected.calories} kcal`} />}
+              {selected.hrAvg && <StatBox label={tText('Avg HR')} value={`${selected.hrAvg} bpm`} />}
+              {selected.hrMin && selected.hrMax && <StatBox label={tText('HR Range')} value={`${selected.hrMin}–${selected.hrMax} bpm`} />}
               {selected.distance != null && selected.distance > 0 && selected.duration > 0 && (
-                <StatBox label="Avg Pace" value={formatPace(selected.distance / (selected.duration / 60))} />
+                <StatBox label={tText('Avg Pace')} value={formatPace(selected.distance / (selected.duration / 60))} />
               )}
               {selected.distance != null && selected.distance > 0 && selected.duration > 0 && (
-                <StatBox label="Avg Speed" value={`${(selected.distance / (selected.duration / 60)).toFixed(1)} km/h`} />
+                <StatBox label={tText('Avg Speed')} value={`${(selected.distance / (selected.duration / 60)).toFixed(1)} km/h`} />
               )}
-              {selected.avgMETs && <StatBox label="Avg METs" value={`${selected.avgMETs.toFixed(1)}`} />}
-              {selected.elevationAscended && <StatBox label="Elevation" value={`${selected.elevationAscended} m`} />}
-              {selected.weather && <StatBox label="Weather" value={selected.weather} />}
+              {selected.avgMETs && <StatBox label={tText('Avg METs')} value={`${selected.avgMETs.toFixed(1)}`} />}
+              {selected.elevationAscended && <StatBox label={tText('Elevation')} value={`${selected.elevationAscended} m`} />}
+              {selected.weather && <StatBox label={tText('Weather')} value={selected.weather} />}
             </div>
 
             {/* Heart rate during session, with HR-zone bands overlaid */}
@@ -568,7 +569,7 @@ export default function TrainingViewer({ data, hevy }: Props) {
             {/* Km Splits for GPS workouts */}
             {selectedRoute && selectedRoute.totalDistance >= 1 && (
               <div className="bg-zinc-900 rounded-xl border border-zinc-800 p-4">
-                <h4 className="text-sm font-medium text-zinc-300 mb-3">Kilometer Splits</h4>
+                <h4 className="text-sm font-medium text-zinc-300 mb-3">{tText('Kilometer Splits')}</h4>
                 <KmSplits route={selectedRoute} />
               </div>
             )}

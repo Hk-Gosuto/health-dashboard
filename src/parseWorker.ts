@@ -1,4 +1,15 @@
+import { Unzip, UnzipInflate, type UnzipFile } from 'fflate'
 import type { DailyMetrics, Workout, SleepRecord, CaffeineRecord, BodyRecord, CardioRecord, DailyHR, HRSample, DailyAudio, DailyBreathing, WristTempRecord, MenstrualRecord, DailyMobility, RunningDynamicsRecord, ParseProgress, ParseComplete, ParseError } from './types'
+
+interface AppleWorkerRequest {
+  file: File
+  inputType?: 'xml' | 'zip'
+}
+
+interface RelatedAppleFiles {
+  gpxFiles?: [string, File][]
+  ecgFiles?: [string, File][]
+}
 
 interface Accumulator {
   // These track per-source to deduplicate iPhone+Watch overlap
@@ -90,16 +101,127 @@ const STAGE_MAP: Record<string, SleepRecord['stage']> = {
   HKCategoryValueSleepAnalysisAsleepUnspecified: 'unspecified',
 }
 
-self.onmessage = async (e: MessageEvent) => {
-  const file: File = e.data.file
+self.onmessage = async (e: MessageEvent<AppleWorkerRequest>) => {
+  const { file, inputType = 'xml' } = e.data
   try {
-    await parseFile(file)
+    if (inputType === 'zip') {
+      const { xmlFile, relatedFiles } = await extractAppleHealthZip(file)
+      await parseFile(xmlFile, relatedFiles)
+    } else {
+      await parseFile(file)
+    }
   } catch (err) {
     self.postMessage({ type: 'error', message: String(err) } as ParseError)
   }
 }
 
-async function parseFile(file: File) {
+async function extractAppleHealthZip(zipFile: File): Promise<{ xmlFile: File; relatedFiles: RelatedAppleFiles }> {
+  const gpxFiles: [string, File][] = []
+  const ecgFiles: [string, File][] = []
+  const pending: Promise<void>[] = []
+  let xmlFile: File | null = null
+  let fallbackXmlFile: File | null = null
+  let foundXmlEntry = false
+  let foundFallbackXmlEntry = false
+
+  const unzip = new Unzip((entry) => {
+    const path = entry.name.replace(/\\/g, '/')
+    const name = baseName(path)
+    const lower = name.toLowerCase()
+    if (!name) return
+
+    if (lower === 'export.xml' && !foundXmlEntry) {
+      foundXmlEntry = true
+      pending.push(
+        collectZipEntry(entry, name, 'text/xml').then(file => {
+          xmlFile = file
+        }),
+      )
+    } else if (lower.endsWith('.xml') && lower !== 'export_cda.xml' && !foundFallbackXmlEntry) {
+      foundFallbackXmlEntry = true
+      pending.push(
+        collectZipEntry(entry, name, 'text/xml').then(file => {
+          fallbackXmlFile = file
+        }),
+      )
+    } else if (lower.endsWith('.gpx')) {
+      pending.push(
+        collectZipEntry(entry, name, 'application/gpx+xml').then(file => {
+          gpxFiles.push([name, file])
+        }),
+      )
+    } else if (lower.startsWith('ecg_') && lower.endsWith('.csv')) {
+      pending.push(
+        collectZipEntry(entry, name, 'text/csv').then(file => {
+          ecgFiles.push([name, file])
+        }),
+      )
+    }
+  })
+  unzip.register(UnzipInflate)
+
+  let bytesRead = 0
+  let previous: Uint8Array | null = null
+  const reader = zipFile.stream().getReader()
+  try {
+    for (;;) {
+      const { value, done } = await reader.read()
+      if (done) break
+      if (previous) {
+        unzip.push(previous, false)
+        bytesRead += previous.byteLength
+        self.postMessage({ type: 'progress', recordsProcessed: 0, currentDate: '', bytesRead, totalBytes: zipFile.size } as ParseProgress)
+      }
+      previous = value
+    }
+    if (previous) {
+      unzip.push(previous, true)
+      bytesRead += previous.byteLength
+    } else {
+      unzip.push(new Uint8Array(), true)
+    }
+    self.postMessage({ type: 'progress', recordsProcessed: 0, currentDate: '', bytesRead: zipFile.size, totalBytes: zipFile.size } as ParseProgress)
+  } finally {
+    reader.releaseLock()
+  }
+
+  await Promise.all(pending)
+  const selectedXmlFile = xmlFile ?? fallbackXmlFile
+  if (!selectedXmlFile) {
+    throw new Error('No Apple Health export XML file found in the selected ZIP.')
+  }
+
+  return { xmlFile: selectedXmlFile, relatedFiles: { gpxFiles, ecgFiles } }
+}
+
+function collectZipEntry(entry: UnzipFile, name: string, type: string): Promise<File> {
+  return new Promise((resolve, reject) => {
+    const chunks: ArrayBuffer[] = []
+    entry.ondata = (err, chunk, final) => {
+      if (err) {
+        reject(err)
+        return
+      }
+      if (chunk.length > 0) {
+        const copy = new Uint8Array(chunk.length)
+        copy.set(chunk)
+        chunks.push(copy.buffer)
+      }
+      if (final) resolve(new File(chunks, name, { type }))
+    }
+    try {
+      entry.start()
+    } catch (err) {
+      reject(err)
+    }
+  })
+}
+
+function baseName(path: string): string {
+  return path.split('/').pop() || path
+}
+
+async function parseFile(file: File, relatedFiles: RelatedAppleFiles = {}) {
   const dailyMetrics = new Map<string, DailyMetrics>()
   const dailyAcc = new Map<string, Accumulator>()
   const activitySummaries = new Map<string, { exercise: number; stand: number; activeEnergy: number; activeEnergyGoal: number; exerciseGoal: number; standGoal: number }>()
@@ -121,7 +243,7 @@ async function parseFile(file: File) {
   const mobilityAcc = new Map<string, { walkingSpeed: number[]; stepLength: number[]; doubleSupportPct: number[]; asymmetryPct: number[]; stairAscent: number[]; stairDescent: number[]; steadiness: number[]; sixMinWalk: number[]; flights: number }>()
   const runningAcc = new Map<string, { power: number[]; speed: number[]; vertOsc: number[]; groundContact: number[]; strideLen: number[] }>()
 
-  let profile = { dob: '', sex: '', bloodType: '' }
+  const profile = { dob: '', sex: '', bloodType: '' }
   let exportDate = ''
   let recordCount = 0
 
@@ -689,6 +811,7 @@ async function parseFile(file: File) {
       dailyMobility,
       runningDynamics,
       exportDate,
+      ...relatedFiles,
     },
   } as ParseComplete)
 }

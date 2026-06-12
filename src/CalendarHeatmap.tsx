@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import type { DailyMetrics } from './types'
 import type { Granularity } from './analysis'
 import { TabHeader } from './ui'
+import { useI18n } from './i18n'
 
 const METRICS: { key: keyof DailyMetrics; label: string; unit: string; colorScale: string[] }[] = [
   { key: 'steps', label: 'Steps', unit: 'steps', colorScale: ['#0f1729', '#1e3a5f', '#1d4ed8', '#3b82f6', '#93c5fd'] },
@@ -26,6 +27,7 @@ interface Props {
 }
 
 export default function CalendarHeatmap({ metrics, granularity }: Props) {
+  const { tText } = useI18n()
   const metricsMap = useMemo(() => {
     const m = new Map<string, DailyMetrics>()
     for (const d of metrics) m.set(d.date, d)
@@ -77,7 +79,7 @@ export default function CalendarHeatmap({ metrics, granularity }: Props) {
 
   return (
     <div className="space-y-4">
-      <TabHeader title="Calendar" description="Daily health metrics visualized as a calendar heatmap — spot patterns at a glance." />
+      <TabHeader title={tText('Calendar')} description={tText('Daily health metrics visualized as a calendar heatmap — spot patterns at a glance.')} />
       {/* Year selector */}
       <div className="flex gap-1.5 flex-wrap">
         {years.map(y => (
@@ -145,6 +147,7 @@ function MetricYearGrid({
   onHover: (d: { date: string; values: Record<string, number | null>; x: number; y: number } | null) => void
   granularity: Granularity
 }) {
+  const { tText } = useI18n()
   const { cells, monthLabels, totalWeeks, yearAvg, yearTotal, dayCount, rows } = useMemo(() => {
     if (granularity === 'monthly') {
       // Monthly: 12 cells in a row
@@ -269,13 +272,13 @@ function MetricYearGrid({
   }
 
   function fmtSummary(): string {
-    if (yearAvg === null) return `${dayCount} days`
+    if (yearAvg === null) return `${dayCount} ${tText('days')}`
     const avg = metric.key === 'sleepHours' ? yearAvg.toFixed(1) : Math.round(yearAvg).toLocaleString()
     let extra = ''
-    if (metric.key === 'steps') extra = ` · ${yearTotal >= 1e6 ? `${(yearTotal / 1e6).toFixed(1)}M` : `${Math.round(yearTotal / 1000)}k`} total`
+    if (metric.key === 'steps') extra = ` · ${yearTotal >= 1e6 ? `${(yearTotal / 1e6).toFixed(1)}M` : `${Math.round(yearTotal / 1000)}k`} ${tText('total')}`
     else if (metric.key === 'distance') extra = ` · ${yearTotal.toFixed(0)} km`
     else if (metric.key === 'exerciseMinutes') extra = ` · ${Math.round(yearTotal / 60)} hrs`
-    return `Avg: ${avg} ${metric.unit}${extra} · ${dayCount} days`
+    return `${tText('Avg')}: ${avg} ${metric.unit}${extra} · ${dayCount} ${tText('days')}`
   }
 
   return (
@@ -283,7 +286,7 @@ function MetricYearGrid({
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-2">
           <div className="w-2 h-2 rounded-full" style={{ background: metric.colorScale[3] }} />
-          <h3 className="text-sm font-medium text-zinc-200">{metric.label}</h3>
+          <h3 className="text-sm font-medium text-zinc-200">{tText(metric.label)}</h3>
         </div>
         <div className="text-[10px] text-zinc-500">{fmtSummary()}</div>
       </div>
@@ -318,14 +321,14 @@ function MetricYearGrid({
       </div>
       {/* Legend */}
       <div className="flex items-center gap-1.5 mt-1 text-[10px] text-zinc-600">
-        <span>Less</span>
+        <span>{tText('Less')}</span>
         <div className="flex gap-0.5">
           <div className="w-2.5 h-2.5 rounded-sm" style={{ background: '#09090b', border: '1px solid #27272a' }} />
           {metric.colorScale.map((c, i) => (
             <div key={i} className="w-2.5 h-2.5 rounded-sm" style={{ background: c }} />
           ))}
         </div>
-        <span>More</span>
+        <span>{tText('More')}</span>
       </div>
     </div>
   )

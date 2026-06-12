@@ -6,6 +6,7 @@ import {
 import type { DailyAudio } from './types'
 import type { Granularity } from './analysis'
 import { StatBox, AISummaryButton, TabHeader, ChartTooltip, useChartTheme, chartMargin, COLORS, shortDate, shortMonth, avg } from './ui'
+import { useI18n } from './i18n'
 
 // WHO/NIOSH safe exposure thresholds
 const SAFE_HEADPHONE_DB = 80 // 80 dB for prolonged exposure
@@ -18,6 +19,7 @@ interface Props {
 }
 
 export default function AudioExposure({ dailyAudio, cutoffDate, granularity: _granularity }: Props) {
+  const { tText } = useI18n()
   const ct = useChartTheme()
   const filtered = useMemo(() => {
     if (!cutoffDate) return dailyAudio
@@ -97,46 +99,46 @@ export default function AudioExposure({ dailyAudio, cutoffDate, granularity: _gr
   const totalHpHours = Math.round(filtered.reduce((s, d) => s + d.headphoneMinutes, 0) / 60)
 
   if (filtered.length === 0) {
-    return <div className="text-zinc-500 text-center py-20">No audio exposure data found.</div>
+    return <div className="text-zinc-500 text-center py-20">{tText('No audio exposure data found.')}</div>
   }
 
   return (
     <div className="space-y-6">
-      <TabHeader title="Audio Exposure" description="Headphone audio levels and environmental noise exposure to help protect your hearing." />
+      <TabHeader title={tText('Audio Exposure')} description={tText('Headphone and environmental sound exposure over time.')} />
       {/* Summary */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
         {avgHeadphone.length > 0 && (
           <StatBox
-            label="Headphone Avg"
+            label={tText('Headphone Avg')}
             value={`${Math.round(avg(avgHeadphone))}`}
             unit="dB"
             color={avg(avgHeadphone) > SAFE_HEADPHONE_DB ? COLORS.red : COLORS.green}
-            sub="Last 30 days"
+            sub={tText('Last 30 days')}
           />
         )}
         {avgEnv.length > 0 && (
           <StatBox
-            label="Environment Avg"
+            label={tText('Environment Avg')}
             value={`${Math.round(avg(avgEnv))}`}
             unit="dB"
             color={avg(avgEnv) > LOUD_ENV_DB ? COLORS.red : COLORS.green}
-            sub="Last 30 days"
+            sub={tText('Last 30 days')}
           />
         )}
         <StatBox
-          label="Days > 80 dB"
+          label={tText('Days > 80 dB')}
           value={`${daysAboveHeadphone}`}
-          sub="Headphone exposure"
+          sub={tText('Headphone exposure')}
           color={daysAboveHeadphone > 0 ? COLORS.red : COLORS.green}
         />
         <StatBox
-          label="Days > 85 dB"
+          label={tText('Days > 85 dB')}
           value={`${daysAboveEnv}`}
-          sub="Environmental"
+          sub={tText('Environmental')}
           color={daysAboveEnv > 0 ? COLORS.red : COLORS.green}
         />
-        <StatBox label="Loud Events" value={`${totalEvents}`} sub="Momentary limit alerts" />
-        <StatBox label="Headphone Time" value={`${totalHpHours}`} unit="hrs" sub="Total listening" />
+        <StatBox label={tText('Loud Events')} value={`${totalEvents}`} sub={tText('Momentary limit alerts')} />
+        <StatBox label={tText('Headphone Time')} value={`${totalHpHours}`} unit="hrs" sub={tText('Total listening')} />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -145,10 +147,10 @@ export default function AudioExposure({ dailyAudio, cutoffDate, granularity: _gr
           <div className="bg-zinc-900 rounded-xl border border-zinc-800 p-4">
             <div className="flex items-start justify-between mb-1">
               <div>
-                <h3 className="text-sm font-medium text-zinc-300">Headphone Audio Levels (weekly)</h3>
-                <p className="text-xs text-zinc-500 mt-0.5">Average and peak levels. WHO safe limit: 80 dB for prolonged exposure.</p>
+                <h3 className="text-sm font-medium text-zinc-300">{tText('Headphone Audio Levels (weekly)')}</h3>
+                <p className="text-xs text-zinc-500 mt-0.5">{tText('Average and peak levels. WHO safe limit: 80 dB for prolonged exposure.')}</p>
               </div>
-              <AISummaryButton title="Headphone Audio Levels (weekly)" description="Average and peak levels. WHO safe limit: 80 dB for prolonged exposure." chartData={weeklyHeadphone} />
+              <AISummaryButton title={tText('Headphone Audio Levels (weekly)')} description={tText('Average and peak levels. WHO safe limit: 80 dB for prolonged exposure.')} chartData={weeklyHeadphone} />
             </div>
             <div className="h-56">
               <ResponsiveContainer width="100%" height="100%" minWidth={0} debounce={1}>
@@ -163,7 +165,7 @@ export default function AudioExposure({ dailyAudio, cutoffDate, granularity: _gr
                   <XAxis dataKey="week" tick={{ fontSize: 10, fill: ct.tick }} tickFormatter={shortDate} />
                   <YAxis domain={['auto', 'auto']} tick={{ fontSize: 10, fill: ct.tick }} />
                   <ReferenceLine y={SAFE_HEADPHONE_DB} stroke={COLORS.red} strokeDasharray="3 3" label={{ value: '80 dB limit', position: 'right', fill: ct.tick, fontSize: 10 }} />
-                  <Tooltip content={<ChartTooltip formatter={(v, name) => [`${v} dB`, name === 'avg' ? 'Average' : 'Peak']} />} />
+                  <Tooltip content={<ChartTooltip formatter={(v, name) => [`${v} dB`, name === 'avg' ? tText('Average') : tText('Peak')]} />} />
                   <Area type="monotone" dataKey="max" stroke={COLORS.purple} fill="url(#hpGrad)" strokeWidth={1} strokeOpacity={0.4} dot={false} />
                   <Line type="monotone" dataKey="avg" stroke={COLORS.purple} strokeWidth={1.5} dot={false} />
                 </AreaChart>
@@ -177,10 +179,10 @@ export default function AudioExposure({ dailyAudio, cutoffDate, granularity: _gr
           <div className="bg-zinc-900 rounded-xl border border-zinc-800 p-4">
             <div className="flex items-start justify-between mb-1">
               <div>
-                <h3 className="text-sm font-medium text-zinc-300">Environmental Noise (weekly)</h3>
-                <p className="text-xs text-zinc-500 mt-0.5">Average and peak ambient noise from Apple Watch. Safe limit: 85 dB.</p>
+                <h3 className="text-sm font-medium text-zinc-300">{tText('Environmental Noise (weekly)')}</h3>
+                <p className="text-xs text-zinc-500 mt-0.5">{tText('Average and peak ambient noise from Apple Watch. Safe limit: 85 dB.')}</p>
               </div>
-              <AISummaryButton title="Environmental Noise (weekly)" description="Average and peak ambient noise from Apple Watch. Safe limit: 85 dB." chartData={weeklyEnv} />
+              <AISummaryButton title={tText('Environmental Noise (weekly)')} description={tText('Average and peak ambient noise from Apple Watch. Safe limit: 85 dB.')} chartData={weeklyEnv} />
             </div>
             <div className="h-56">
               <ResponsiveContainer width="100%" height="100%" minWidth={0} debounce={1}>
@@ -195,7 +197,7 @@ export default function AudioExposure({ dailyAudio, cutoffDate, granularity: _gr
                   <XAxis dataKey="week" tick={{ fontSize: 10, fill: ct.tick }} tickFormatter={shortDate} />
                   <YAxis domain={['auto', 'auto']} tick={{ fontSize: 10, fill: ct.tick }} />
                   <ReferenceLine y={LOUD_ENV_DB} stroke={COLORS.red} strokeDasharray="3 3" label={{ value: '85 dB limit', position: 'right', fill: ct.tick, fontSize: 10 }} />
-                  <Tooltip content={<ChartTooltip formatter={(v, name) => [`${v} dB`, name === 'avg' ? 'Average' : 'Peak']} />} />
+                  <Tooltip content={<ChartTooltip formatter={(v, name) => [`${v} dB`, name === 'avg' ? tText('Average') : tText('Peak')]} />} />
                   <Area type="monotone" dataKey="max" stroke={COLORS.orange} fill="url(#envGrad)" strokeWidth={1} strokeOpacity={0.4} dot={false} />
                   <Line type="monotone" dataKey="avg" stroke={COLORS.orange} strokeWidth={1.5} dot={false} />
                 </AreaChart>
@@ -210,9 +212,9 @@ export default function AudioExposure({ dailyAudio, cutoffDate, granularity: _gr
         <div className="bg-zinc-900 rounded-xl border border-zinc-800 p-4">
           <div className="flex items-start justify-between mb-1">
             <div>
-              <h3 className="text-sm font-medium text-zinc-300">Monthly Exposure Time (hours)</h3>
+              <h3 className="text-sm font-medium text-zinc-300">{tText('Monthly Exposure Time (hours)')}</h3>
             </div>
-            <AISummaryButton title="Monthly Exposure Time (hours)" chartData={monthlyExposure} />
+            <AISummaryButton title={tText('Monthly Exposure Time (hours)')} chartData={monthlyExposure} />
           </div>
           <div className="h-56">
             <ResponsiveContainer width="100%" height="100%" minWidth={0} debounce={1}>
@@ -220,7 +222,7 @@ export default function AudioExposure({ dailyAudio, cutoffDate, granularity: _gr
                 <CartesianGrid strokeDasharray="3 3" stroke={ct.grid} />
                 <XAxis dataKey="month" tick={{ fontSize: 10, fill: ct.tick }} tickFormatter={shortMonth} />
                 <YAxis tick={{ fontSize: 10, fill: ct.tick }} />
-                <Tooltip content={<ChartTooltip formatter={(v, name) => [`${v}h`, name === 'headphone' ? 'Headphone' : 'Environmental']} />} />
+                <Tooltip content={<ChartTooltip formatter={(v, name) => [`${v}h`, name === 'headphone' ? tText('Headphone') : tText('Environmental')]} />} />
                 <Bar dataKey="headphone" fill={COLORS.purple} radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>

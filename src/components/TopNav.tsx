@@ -13,6 +13,7 @@ import {
   Upload,
   X,
 } from 'lucide-react'
+import { useI18n } from '../i18n'
 
 export type NavTabKey = string
 
@@ -67,6 +68,7 @@ export default function TopNav({
   onReset,
   onSettings,
 }: TopNavProps) {
+  const { t } = useI18n()
   const [openGroup, setOpenGroup] = useState<string | null>(null)
   const [mobileOpen, setMobileOpen] = useState(false)
   const navRef = useRef<HTMLDivElement | null>(null)
@@ -210,7 +212,7 @@ export default function TopNav({
         <div className="flex md:hidden items-center flex-1 min-w-0 px-2 gap-2">
           <button
             onClick={() => setMobileOpen(true)}
-            aria-label="Open navigation"
+            aria-label={t('openNavigation')}
             className="shrink-0 w-9 h-9 flex items-center justify-center rounded-lg text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800/50 transition-colors"
           >
             <Menu size={18} />
@@ -234,8 +236,8 @@ export default function TopNav({
           {onSettings && (
             <button
               onClick={onSettings}
-              aria-label="Settings"
-              title="Settings"
+              aria-label={t('settings')}
+              title={t('settings')}
               className="w-9 h-9 flex items-center justify-center rounded-lg text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800/50 transition-colors duration-150"
             >
               <Settings size={16} />
@@ -243,15 +245,15 @@ export default function TopNav({
           )}
           <button
             onClick={onThemeToggle}
-            aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+            aria-label={theme === 'dark' ? t('switchLight') : t('switchDark')}
             className="w-9 h-9 flex items-center justify-center rounded-lg text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800/50 transition-colors duration-150"
           >
             {theme === 'dark' ? <SunMedium size={16} /> : <MoonStar size={16} />}
           </button>
           <button
             onClick={onReset}
-            aria-label="New import"
-            title="New import"
+            aria-label={t('newImport')}
+            title={t('newImport')}
             className="w-9 h-9 flex items-center justify-center rounded-lg text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800/50 transition-colors duration-150"
           >
             <Upload size={16} />
@@ -269,11 +271,11 @@ export default function TopNav({
           <div className="absolute top-0 left-0 bottom-0 w-[280px] max-w-[85%] bg-zinc-950 border-r border-zinc-800 flex flex-col">
             <div className="flex items-center justify-between h-12 px-3 border-b border-zinc-800">
               <span className="text-[11px] font-semibold tracking-wider uppercase text-zinc-500">
-                Health
+                {t('mobileNavTitle')}
               </span>
               <button
                 onClick={() => setMobileOpen(false)}
-                aria-label="Close navigation"
+                aria-label={t('closeNavigation')}
                 className="w-9 h-9 flex items-center justify-center rounded-lg text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800/50 transition-colors"
               >
                 <X size={18} />

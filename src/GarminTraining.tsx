@@ -10,6 +10,7 @@ import {
   shortDateCompact, tooltipStyle,
 } from './ui'
 
+import { translateText as tText } from './i18n'
 const READINESS_COLORS: Record<string, string> = {
   PRIME: COLORS.green,
   HIGH: '#4ade80',
@@ -86,13 +87,13 @@ export default function GarminTraining({
 
   return (
     <div className="space-y-6">
-      <TabHeader title="Garmin Training" description="Training metrics, readiness, and performance scores from your Garmin device" />
+      <TabHeader title={tText('Garmin Training')} description={tText('Training metrics, readiness, and performance scores from your Garmin device')} />
 
       {/* Key Stats */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {latestReadiness && (
           <StatBox
-            label="Training Readiness"
+            label={tText('Training Readiness')}
             value={String(latestReadiness.score)}
             sub={latestReadiness.level.replace(/_/g, ' ').toLowerCase()}
             color={READINESS_COLORS[latestReadiness.level] || COLORS.zinc}
@@ -102,10 +103,10 @@ export default function GarminTraining({
           <StatBox label="VO2 Max" value={latestVO2.value.toFixed(1)} unit="ml/kg/min" sub={latestVO2.sport.toLowerCase()} color={COLORS.cyan} />
         )}
         {latestEndurance && (
-          <StatBox label="Endurance Score" value={String(Math.round(latestEndurance.score / 100))} color={COLORS.blue} />
+          <StatBox label={tText('Endurance Score')} value={String(Math.round(latestEndurance.score / 100))} color={COLORS.blue} />
         )}
         {latestHill && (
-          <StatBox label="Hill Score" value={String(latestHill.overall)} sub={`Str ${latestHill.strength} / End ${latestHill.endurance}`} color={COLORS.orange} />
+          <StatBox label={tText('Hill Score')} value={String(latestHill.overall)} sub={`Str ${latestHill.strength} / End ${latestHill.endurance}`} color={COLORS.orange} />
         )}
         {latestATL && (
           <StatBox
@@ -116,21 +117,21 @@ export default function GarminTraining({
           />
         )}
         {latestRace && (
-          <StatBox label="Predicted 5K" value={formatRaceTime(latestRace.time5k)} color={COLORS.purple} />
+          <StatBox label={tText('Predicted 5K')} value={formatRaceTime(latestRace.time5k)} color={COLORS.purple} />
         )}
         {latestFitness && (
-          <StatBox label="Fitness Age" value={String(Math.round(latestFitness.fitnessAge))} unit="yrs" sub={`Chrono: ${latestFitness.chronologicalAge}`} color={COLORS.green} />
+          <StatBox label={tText('Fitness Age')} value={String(Math.round(latestFitness.fitnessAge))} unit="yrs" sub={`Chrono: ${latestFitness.chronologicalAge}`} color={COLORS.green} />
         )}
         {stress.length > 0 && (
-          <StatBox label="Avg Stress" value={String(Math.round(stress.reduce((s, d) => s + d.avgStress, 0) / stress.length))} color={COLORS.yellow} />
+          <StatBox label={tText('Avg Stress')} value={String(Math.round(stress.reduce((s, d) => s + d.avgStress, 0) / stress.length))} color={COLORS.yellow} />
         )}
       </div>
 
       {/* Training Readiness */}
       {readiness.length > 0 && (
         <>
-          <SectionHeader>Training Readiness</SectionHeader>
-          <ChartCard title="Readiness Score">
+          <SectionHeader>{tText('Training Readiness')}</SectionHeader>
+          <ChartCard title={tText('Readiness Score')}>
             <AreaChart data={readinessGrouped} margin={chartMargin}>
               <defs>
                 <linearGradient id="readinessGrad" x1="0" y1="0" x2="0" y2="1">
@@ -151,8 +152,8 @@ export default function GarminTraining({
       {/* VO2 Max */}
       {vo2max.length > 0 && (
         <>
-          <SectionHeader>VO2 Max</SectionHeader>
-          <ChartCard title="VO2 Max Progression">
+          <SectionHeader>{tText('VO2 Max')}</SectionHeader>
+          <ChartCard title={tText('VO2 Max Progression')}>
             <LineChart data={vo2max} margin={chartMargin}>
               <CartesianGrid strokeDasharray="3 3" stroke="#27272a" />
               <XAxis dataKey="date" tickFormatter={shortDateCompact} tick={{ fontSize: 11 }} stroke="#3f3f46" />
@@ -167,10 +168,10 @@ export default function GarminTraining({
       {/* Endurance & Hill Score */}
       {(endurance.length > 0 || hill.length > 0) && (
         <>
-          <SectionHeader>Performance Scores</SectionHeader>
+          <SectionHeader>{tText('Performance Scores')}</SectionHeader>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {endurance.length > 0 && (
-              <ChartCard title="Endurance Score">
+              <ChartCard title={tText('Endurance Score')}>
                 <LineChart data={endurance.map(e => ({ ...e, scoreDisplay: Math.round(e.score / 100) }))} margin={chartMargin}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#27272a" />
                   <XAxis dataKey="date" tickFormatter={shortDateCompact} tick={{ fontSize: 11 }} stroke="#3f3f46" />
@@ -181,7 +182,7 @@ export default function GarminTraining({
               </ChartCard>
             )}
             {hill.length > 0 && (
-              <ChartCard title="Hill Score">
+              <ChartCard title={tText('Hill Score')}>
                 <LineChart data={hill} margin={chartMargin}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#27272a" />
                   <XAxis dataKey="date" tickFormatter={shortDateCompact} tick={{ fontSize: 11 }} stroke="#3f3f46" />
@@ -200,9 +201,9 @@ export default function GarminTraining({
       {/* Training Load (ACWR) */}
       {atl.length > 0 && (
         <>
-          <SectionHeader>Training Load</SectionHeader>
+          <SectionHeader>{tText('Training Load')}</SectionHeader>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <ChartCard title="Acute vs Chronic Load">
+            <ChartCard title={tText('Acute vs Chronic Load')}>
               <LineChart data={atl} margin={chartMargin}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#27272a" />
                 <XAxis dataKey="date" tickFormatter={shortDateCompact} tick={{ fontSize: 11 }} stroke="#3f3f46" />
@@ -212,7 +213,7 @@ export default function GarminTraining({
                 <Line type="monotone" dataKey="chronic" stroke={COLORS.blue} strokeWidth={2} dot={false} name="Chronic" />
               </LineChart>
             </ChartCard>
-            <ChartCard title="ACWR Ratio">
+            <ChartCard title={tText('ACWR Ratio')}>
               <ComposedChart data={atl} margin={chartMargin}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#27272a" />
                 <XAxis dataKey="date" tickFormatter={shortDateCompact} tick={{ fontSize: 11 }} stroke="#3f3f46" />
@@ -230,8 +231,8 @@ export default function GarminTraining({
       {/* Race Predictions */}
       {race.length > 0 && (
         <>
-          <SectionHeader>Race Predictions</SectionHeader>
-          <ChartCard title="Predicted Race Times" tall>
+          <SectionHeader>{tText('Race Predictions')}</SectionHeader>
+          <ChartCard title={tText('Predicted Race Times')} tall>
             <LineChart data={race} margin={chartMargin}>
               <CartesianGrid strokeDasharray="3 3" stroke="#27272a" />
               <XAxis dataKey="date" tickFormatter={shortDateCompact} tick={{ fontSize: 11 }} stroke="#3f3f46" />
@@ -247,8 +248,8 @@ export default function GarminTraining({
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               <StatBox label="5K" value={formatRaceTime(latestRace.time5k)} color={COLORS.green} />
               <StatBox label="10K" value={formatRaceTime(latestRace.time10k)} color={COLORS.blue} />
-              <StatBox label="Half Marathon" value={formatRaceTime(latestRace.timeHalf)} color={COLORS.purple} />
-              <StatBox label="Marathon" value={formatRaceTime(latestRace.timeMarathon)} color={COLORS.orange} />
+              <StatBox label={tText('Half Marathon')} value={formatRaceTime(latestRace.timeHalf)} color={COLORS.purple} />
+              <StatBox label={tText('Marathon')} value={formatRaceTime(latestRace.timeMarathon)} color={COLORS.orange} />
             </div>
           )}
         </>
@@ -257,8 +258,8 @@ export default function GarminTraining({
       {/* Stress */}
       {stress.length > 0 && (
         <>
-          <SectionHeader>Stress</SectionHeader>
-          <ChartCard title="Daily Average Stress">
+          <SectionHeader>{tText('Stress')}</SectionHeader>
+          <ChartCard title={tText('Daily Average Stress')}>
             <AreaChart data={stressGrouped} margin={chartMargin}>
               <defs>
                 <linearGradient id="stressGrad" x1="0" y1="0" x2="0" y2="1">
@@ -279,8 +280,8 @@ export default function GarminTraining({
       {/* Sleep Scores */}
       {sleepScores.length > 0 && (
         <>
-          <SectionHeader>Sleep Scores</SectionHeader>
-          <ChartCard title="Sleep Score Components" tall>
+          <SectionHeader>{tText('Sleep Scores')}</SectionHeader>
+          <ChartCard title={tText('Sleep Score Components')} tall>
             <LineChart data={sleepScores} margin={chartMargin}>
               <CartesianGrid strokeDasharray="3 3" stroke="#27272a" />
               <XAxis dataKey="date" tickFormatter={shortDateCompact} tick={{ fontSize: 11 }} stroke="#3f3f46" />
@@ -298,8 +299,8 @@ export default function GarminTraining({
       {/* Fitness Age */}
       {fitness.length > 0 && (
         <>
-          <SectionHeader>Fitness Age</SectionHeader>
-          <ChartCard title="Fitness Age vs Chronological Age">
+          <SectionHeader>{tText('Fitness Age')}</SectionHeader>
+          <ChartCard title={tText('Fitness Age vs Chronological Age')}>
             <LineChart data={fitness} margin={chartMargin}>
               <CartesianGrid strokeDasharray="3 3" stroke="#27272a" />
               <XAxis dataKey="date" tickFormatter={shortDateCompact} tick={{ fontSize: 11 }} stroke="#3f3f46" />
@@ -315,8 +316,8 @@ export default function GarminTraining({
       {/* Heat & Altitude */}
       {heat.length > 0 && (
         <>
-          <SectionHeader>Heat & Altitude Acclimatization</SectionHeader>
-          <ChartCard title="Acclimatization">
+          <SectionHeader>{tText('Heat & Altitude Acclimatization')}</SectionHeader>
+          <ChartCard title={tText('Acclimatization')}>
             <LineChart data={heat} margin={chartMargin}>
               <CartesianGrid strokeDasharray="3 3" stroke="#27272a" />
               <XAxis dataKey="date" tickFormatter={shortDateCompact} tick={{ fontSize: 11 }} stroke="#3f3f46" />
@@ -332,8 +333,8 @@ export default function GarminTraining({
       {/* Hydration */}
       {hydration.length > 0 && (
         <>
-          <SectionHeader>Hydration</SectionHeader>
-          <ChartCard title="Sweat Loss During Activities">
+          <SectionHeader>{tText('Hydration')}</SectionHeader>
+          <ChartCard title={tText('Sweat Loss During Activities')}>
             <BarChart data={hydration} margin={chartMargin}>
               <CartesianGrid strokeDasharray="3 3" stroke="#27272a" />
               <XAxis dataKey="date" tickFormatter={shortDateCompact} tick={{ fontSize: 11 }} stroke="#3f3f46" />

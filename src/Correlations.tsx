@@ -5,6 +5,7 @@ import {
 } from 'recharts'
 import type { DailyMetrics, SleepRecord, CaffeineRecord, DailyBreathing, CardioRecord } from './types'
 import { AISummaryButton, ChartTooltip, shortDateCompact, TabHeader, useChartTheme } from './ui'
+import { useI18n } from './i18n'
 
 interface CorrelationResult {
   label: string
@@ -68,22 +69,23 @@ interface ChartConfig {
   zRange?: [number, number]
 }
 
-function humanInterpretation(result: CorrelationResult): string {
+function humanInterpretation(result: CorrelationResult, tText: (text: string) => string): string {
   const strength = Math.abs(result.r)
   const [cause, effect] = result.label.split(' → ')
-  if (strength > 0.5) return `In your data, more ${cause.toLowerCase()} is strongly linked to ${result.r > 0 ? 'higher' : 'lower'} ${effect.toLowerCase()}.`
-  if (strength > 0.3) return `There's a moderate pattern: more ${cause.toLowerCase()} tends to come with ${result.r > 0 ? 'higher' : 'lower'} ${effect.toLowerCase()}.`
-  if (strength > 0.15) return `There's a slight trend between ${cause.toLowerCase()} and ${effect.toLowerCase()}, but it's not very consistent.`
-  return `No meaningful pattern found between ${cause.toLowerCase()} and ${effect.toLowerCase()} in your data.`
+  if (strength > 0.5) return `${tText('In your data, more')} ${tText(cause).toLowerCase()} ${tText('is strongly linked to')} ${tText(result.r > 0 ? 'higher' : 'lower')} ${tText(effect).toLowerCase()}.`
+  if (strength > 0.3) return `${tText("There's a moderate pattern: more")} ${tText(cause).toLowerCase()} ${tText('tends to come with')} ${tText(result.r > 0 ? 'higher' : 'lower')} ${tText(effect).toLowerCase()}.`
+  if (strength > 0.15) return `${tText("There's a slight trend between")} ${tText(cause).toLowerCase()} ${tText('and')} ${tText(effect).toLowerCase()}, ${tText("but it's not very consistent.")}`
+  return `${tText('No meaningful pattern found between')} ${tText(cause).toLowerCase()} ${tText('and')} ${tText(effect).toLowerCase()} ${tText('in your data.')}`
 }
 
 function CorrelationCard({ result, chart }: { result: CorrelationResult; chart?: ChartConfig }) {
+  const { tText } = useI18n()
   const ct = useChartTheme()
   const strength = Math.abs(result.r)
   const barColor = strength > 0.5 ? (result.r > 0 ? '#22c55e' : '#ef4444') :
     strength > 0.3 ? (result.r > 0 ? '#4ade80' : '#f87171') :
     strength > 0.15 ? '#a1a1aa' : '#52525b'
-  const strengthLabel = strength > 0.5 ? 'Strong link' : strength > 0.3 ? 'Moderate link' : strength > 0.15 ? 'Weak link' : 'No link'
+  const strengthLabel = strength > 0.5 ? tText('Strong link') : strength > 0.3 ? tText('Moderate link') : strength > 0.15 ? tText('Weak link') : tText('No link')
   const strengthColor = strength > 0.5 ? 'text-green-400' : strength > 0.3 ? 'text-blue-400' : 'text-zinc-500'
 
   return (
@@ -92,7 +94,7 @@ function CorrelationCard({ result, chart }: { result: CorrelationResult; chart?:
       <div className="flex items-start justify-between">
         <div className="space-y-1.5 flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-sm font-medium text-zinc-200">{result.label}</span>
+            <span className="text-sm font-medium text-zinc-200">{tText(result.label)}</span>
             <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full bg-zinc-800 shrink-0 ${strengthColor}`}>{strengthLabel}</span>
           </div>
           {/* Strength bar */}
@@ -108,13 +110,13 @@ function CorrelationCard({ result, chart }: { result: CorrelationResult; chart?:
         </div>
         {chart && chart.data.length > 0 && (
           <div className="ml-2 shrink-0">
-            <AISummaryButton title={result.label} description={result.description} chartData={chart.data} />
+            <AISummaryButton title={tText(result.label)} description={tText(result.description)} chartData={chart.data} />
           </div>
         )}
       </div>
 
       {/* Human explanation */}
-      <p className="text-xs text-zinc-400 leading-relaxed">{humanInterpretation(result)}</p>
+      <p className="text-xs text-zinc-400 leading-relaxed">{humanInterpretation(result, tText)}</p>
 
       {/* Embedded scatter chart */}
       {chart && chart.data.length >= 10 && (
@@ -122,8 +124,8 @@ function CorrelationCard({ result, chart }: { result: CorrelationResult; chart?:
           <ResponsiveContainer width="100%" height="100%" minWidth={0} debounce={1}>
             <ScatterChart margin={{ top: 5, right: 5, bottom: 0, left: -15 }}>
               <CartesianGrid strokeDasharray="3 3" stroke={ct.grid} />
-              <XAxis dataKey={chart.xKey} name={chart.xName} unit={chart.xUnit} tick={{ fontSize: 10, fill: ct.tick }} />
-              <YAxis dataKey={chart.yKey} name={chart.yName} unit={chart.yUnit} domain={chart.yDomain || ['auto', 'auto']} tick={{ fontSize: 10, fill: ct.tick }} />
+              <XAxis dataKey={chart.xKey} name={tText(chart.xName)} unit={chart.xUnit} tick={{ fontSize: 10, fill: ct.tick }} />
+              <YAxis dataKey={chart.yKey} name={tText(chart.yName)} unit={chart.yUnit} domain={chart.yDomain || ['auto', 'auto']} tick={{ fontSize: 10, fill: ct.tick }} />
               <ZAxis range={chart.zRange || [20, 40]} />
               <Tooltip content={<ChartTooltip />} />
               <Scatter data={chart.data as Record<string, unknown>[]} fill={chart.color} opacity={0.5} />
@@ -147,6 +149,7 @@ interface Props {
 }
 
 export default function Correlations({ metrics, sleepRecords, caffeineRecords, dailyBreathing, cardioRecords, dailyDaylight }: Props) {
+  const { tText } = useI18n()
   const sleepByDate = useMemo(() => buildDailySleepHours(sleepRecords), [sleepRecords])
   const caffeineByDate = useMemo(() => buildDailyCaffeine(caffeineRecords), [caffeineRecords])
 
@@ -413,7 +416,7 @@ export default function Correlations({ metrics, sleepRecords, caffeineRecords, d
   const hasData = correlations.length > 0
 
   if (!hasData) {
-    return <div className="text-zinc-500 text-center py-20">Not enough overlapping data to compute correlations.</div>
+    return <div className="text-zinc-500 text-center py-20">{tText('Not enough overlapping data to compute correlations.')}</div>
   }
 
   // Build chart configs keyed by label
@@ -439,19 +442,19 @@ export default function Correlations({ metrics, sleepRecords, caffeineRecords, d
 
   return (
     <div className="space-y-6">
-      <TabHeader title="Correlations" description="Discover how your health metrics relate to each other — which habits actually move the needle." />
+      <TabHeader title={tText('Correlations')} description={tText('Discover how your health metrics relate to each other — which habits actually move the needle.')} />
       {/* Explainer */}
       <div className="bg-zinc-900 rounded-xl border border-zinc-800 p-4">
-        <h2 className="text-sm font-medium text-zinc-300 mb-1.5">How your habits connect</h2>
+        <h2 className="text-sm font-medium text-zinc-300 mb-1.5">{tText('How your habits connect')}</h2>
         <p className="text-xs text-zinc-500 leading-relaxed">
-          This page looks at pairs of health metrics to find patterns — for example, whether sleeping more is linked to a better heart rate the next day. A <strong className="text-zinc-300">strong link</strong> means the pattern is very consistent, while a <strong className="text-zinc-300">weak link</strong> means it barely shows up. Each dot in the charts is one data point from your history. A link doesn't prove one thing <em>causes</em> the other — it just means they tend to move together.
+          {tText('This page looks at pairs of health metrics to find patterns — for example, whether sleeping more is linked to a better heart rate the next day. A strong link means the pattern is very consistent, while a weak link means it barely shows up. Each dot in the charts is one data point from your history. A link does not prove one thing causes the other — it just means they tend to move together.')}
         </p>
       </div>
 
       {/* Meaningful correlations — each card has its chart embedded */}
       {meaningful.length > 0 && (
         <div>
-          <h2 className="text-sm font-medium text-zinc-300 mb-3">Patterns found in your data</h2>
+          <h2 className="text-sm font-medium text-zinc-300 mb-3">{tText('Patterns found in your data')}</h2>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
             {meaningful.map(c => <CorrelationCard key={c.label} result={c} chart={chartConfigs[c.label]} />)}
           </div>
@@ -461,7 +464,7 @@ export default function Correlations({ metrics, sleepRecords, caffeineRecords, d
       {/* Weak / no link — compact, no chart */}
       {weak.length > 0 && (
         <div>
-          <h2 className="text-sm font-medium text-zinc-500 mb-3">No clear pattern</h2>
+          <h2 className="text-sm font-medium text-zinc-500 mb-3">{tText('No clear pattern')}</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {weak.map(c => <CorrelationCard key={c.label} result={c} />)}
           </div>
@@ -473,10 +476,10 @@ export default function Correlations({ metrics, sleepRecords, caffeineRecords, d
         <div className="bg-zinc-900 rounded-xl border border-zinc-800 p-4">
           <div className="flex items-start justify-between mb-1">
             <div>
-              <h3 className="text-sm font-medium text-zinc-300">How consistent is the sleep-HRV link?</h3>
-              <p className="text-xs text-zinc-500 mt-0.5">Tracks whether sleeping more reliably improves your HRV over 30-day windows. Higher = stronger link, near zero = no pattern.</p>
+              <h3 className="text-sm font-medium text-zinc-300">{tText('How consistent is the sleep-HRV link?')}</h3>
+              <p className="text-xs text-zinc-500 mt-0.5">{tText('Tracks whether sleeping more reliably improves your HRV over 30-day windows. Higher = stronger link, near zero = no pattern.')}</p>
             </div>
-            <AISummaryButton title="Sleep-HRV link over time" description="How consistently sleep predicts HRV in 30-day windows" chartData={rollingCorr} />
+            <AISummaryButton title={tText('Sleep-HRV link over time')} description={tText('How consistently sleep predicts HRV in 30-day windows')} chartData={rollingCorr} />
           </div>
           <div className="h-48">
             <ResponsiveContainer width="100%" height="100%" minWidth={0} debounce={1}>

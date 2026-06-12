@@ -80,6 +80,26 @@ npm run build    # static dist/
 npm run lint
 ```
 
+## Local AI Provider
+
+AI features can use either an OpenRouter API key in the browser or a local ChatGPT/Codex OAuth proxy.
+
+```bash
+npm run ai:login   # sign in with ChatGPT/Codex OAuth using a browser device code
+npm run ai:server  # starts http://127.0.0.1:8787
+npm run ai:status  # checks local auth status
+```
+
+When the local AI server is running and authenticated, the dashboard hides the OpenRouter API key input and sends AI requests to the local server. OAuth tokens are stored on this machine under `~/.health-dashboard/ai-auth.json`; the browser never receives them.
+
+Optional environment variables:
+
+```bash
+HEALTH_DASHBOARD_AI_PORT=8787
+HEALTH_DASHBOARD_AI_MODEL=gpt-5.5
+VITE_LOCAL_AI_BASE=http://127.0.0.1:8787
+```
+
 ## Data format
 
 Parses Apple Health's `export.xml` (or localized variants like `exportacion.xml`). HealthKit identifiers are language-independent API constants, so any export language works.

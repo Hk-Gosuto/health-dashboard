@@ -6,6 +6,7 @@ import {
 import type { HealthData } from './types'
 import { chartMargin, COLORS, shortDate, AISummaryButton, TabHeader, useChartTheme, ChartTooltip } from './ui'
 import { computeHealthScores, rollingAvg, scoreLabel } from './healthScore'
+import { useI18n } from './i18n'
 
 function ScoreRing({ score, size = 160, label }: { score: number; size?: number; label: string }) {
   const ct = useChartTheme()
@@ -40,6 +41,7 @@ interface Props {
 }
 
 export default function HealthScoreView({ data, cutoffDate }: Props) {
+  const { tText } = useI18n()
   const ct = useChartTheme()
   const allScores = useMemo(() => computeHealthScores(data), [data])
 
@@ -56,40 +58,40 @@ export default function HealthScoreView({ data, cutoffDate }: Props) {
 
   // Radar data for sub-scores
   const radarData = current ? [
-    { category: 'Cardio', score: current.cardio },
-    { category: 'Sleep', score: current.sleep },
-    { category: 'Activity', score: current.activity },
-    { category: 'Body', score: current.body },
+    { category: tText('Cardio'), score: current.cardio },
+    { category: tText('Sleep'), score: current.sleep },
+    { category: tText('Activity'), score: current.activity },
+    { category: tText('Body'), score: current.body },
   ] : []
 
   // Latest daily score for detail
   const latestDaily = filtered.length > 0 ? filtered[filtered.length - 1] : null
 
   if (!current) {
-    return <div className="text-zinc-500 text-center py-20">Not enough data to compute a health score.</div>
+    return <div className="text-zinc-500 text-center py-20">{tText('Not enough data to compute a health score.')}</div>
   }
 
   return (
     <div className="space-y-6">
-      <TabHeader title="Health Score" description="A composite score combining cardio, sleep, activity, and body metrics into a single number." />
+      <TabHeader title={tText('Health Score')} description={tText('A composite score combining cardio, sleep, activity, and body metrics into a single number.')} />
       {/* Score ring + sub-scores */}
       <div className="grid grid-cols-1 lg:grid-cols-[auto_1fr] gap-6 items-start">
         <div className="flex flex-col items-center gap-2">
           <div className="relative">
-            <ScoreRing score={current.total} size={180} label="Health Score" />
+            <ScoreRing score={current.total} size={180} label={tText('Health Score')} />
           </div>
-          <div className="text-sm font-medium" style={{ color: currentLabel?.color }}>{currentLabel?.label}</div>
-          <div className="text-xs text-zinc-500">7-day average</div>
+          <div className="text-sm font-medium" style={{ color: currentLabel?.color }}>{currentLabel ? tText(currentLabel.label) : null}</div>
+          <div className="text-xs text-zinc-500">{tText('7-day average')}</div>
         </div>
 
         <div className="space-y-4">
           {/* Sub-score cards */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
             {[
-              { label: 'Cardio', score: current.cardio, icon: '❤️' },
-              { label: 'Sleep', score: current.sleep, icon: '🌙' },
-              { label: 'Activity', score: current.activity, icon: '🏃' },
-              { label: 'Body', score: current.body, icon: '⚖️' },
+              { label: tText('Cardio'), score: current.cardio, icon: '❤️' },
+              { label: tText('Sleep'), score: current.sleep, icon: '🌙' },
+              { label: tText('Activity'), score: current.activity, icon: '🏃' },
+              { label: tText('Body'), score: current.body, icon: '⚖️' },
             ].map(s => {
               const sl = scoreLabel(s.score)
               return (
@@ -99,7 +101,7 @@ export default function HealthScoreView({ data, cutoffDate }: Props) {
                     <span className="text-zinc-400 text-xs">{s.label}</span>
                   </div>
                   <div className="text-3xl font-bold" style={{ color: sl.color }}>{s.score}</div>
-                  <div className="text-xs mt-1" style={{ color: sl.color }}>{sl.label}</div>
+                  <div className="text-xs mt-1" style={{ color: sl.color }}>{tText(sl.label)}</div>
                 </div>
               )
             })}
@@ -126,7 +128,7 @@ export default function HealthScoreView({ data, cutoffDate }: Props) {
           <div className="flex-1 h-1.5 bg-zinc-800 rounded-full overflow-hidden">
             <div className="h-full rounded-full bg-zinc-600" style={{ width: `${latestDaily.confidence * 100}%` }} />
           </div>
-          <span>{latestDaily.metricsUsed}/{latestDaily.metricsTotal} metrics available</span>
+          <span>{latestDaily.metricsUsed}/{latestDaily.metricsTotal} {tText('metrics available')}</span>
         </div>
       )}
 
@@ -135,10 +137,10 @@ export default function HealthScoreView({ data, cutoffDate }: Props) {
         <div className="bg-zinc-900 rounded-xl border border-zinc-800 p-4">
           <div className="flex items-start justify-between mb-1">
             <div>
-              <h3 className="text-sm font-medium text-zinc-300">Health Score Over Time</h3>
-              <p className="text-xs text-zinc-500 mt-0.5">7-day rolling average</p>
+              <h3 className="text-sm font-medium text-zinc-300">{tText('Health Score Over Time')}</h3>
+              <p className="text-xs text-zinc-500 mt-0.5">{tText('7-day rolling average')}</p>
             </div>
-            <AISummaryButton title="Health Score Over Time" description="7-day rolling average" chartData={rolling} />
+            <AISummaryButton title={tText('Health Score Over Time')} description={tText('7-day rolling average')} chartData={rolling} />
           </div>
           <div className="h-56">
             <ResponsiveContainer width="100%" height="100%" minWidth={0} debounce={1}>
@@ -152,7 +154,7 @@ export default function HealthScoreView({ data, cutoffDate }: Props) {
                 <CartesianGrid strokeDasharray="3 3" stroke={ct.grid} />
                 <XAxis dataKey="date" tick={{ fontSize: 10, fill: ct.tick }} tickFormatter={shortDate} />
                 <YAxis domain={[0, 100]} tick={{ fontSize: 10, fill: ct.tick }} />
-                <Tooltip content={<ChartTooltip formatter={(v, name) => [`${v}`, name === 'total' ? 'Total' : String(name)]} />} />
+                <Tooltip content={<ChartTooltip formatter={(v, name) => [`${v}`, name === 'total' ? tText('total') : String(name)]} />} />
                 <Area type="monotone" dataKey="total" stroke={COLORS.green} fill="url(#scoreGrad)" strokeWidth={2} dot={false} />
               </AreaChart>
             </ResponsiveContainer>
@@ -164,10 +166,10 @@ export default function HealthScoreView({ data, cutoffDate }: Props) {
       {rolling.length > 7 && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
           {[
-            { key: 'cardio', label: 'Cardio Score', color: COLORS.red },
-            { key: 'sleep', label: 'Sleep Score', color: COLORS.purple },
-            { key: 'activity', label: 'Activity Score', color: COLORS.blue },
-            { key: 'body', label: 'Body Score', color: COLORS.orange },
+            { key: 'cardio', label: tText('Cardio Score'), color: COLORS.red },
+            { key: 'sleep', label: tText('Sleep Score'), color: COLORS.purple },
+            { key: 'activity', label: tText('Activity Score'), color: COLORS.blue },
+            { key: 'body', label: tText('Body Score'), color: COLORS.orange },
           ].map(({ key, label, color }) => (
             <div key={key} className="bg-zinc-900 rounded-xl border border-zinc-800 p-4">
               <div className="flex items-start justify-between mb-1">
@@ -199,7 +201,7 @@ export default function HealthScoreView({ data, cutoffDate }: Props) {
       )}
 
       <p className="text-xs text-zinc-600 text-center">
-        Score based on clinical thresholds from ACSM, WHO, and mortality meta-analyses. Not a diagnostic tool.
+        {tText('Score based on clinical thresholds from ACSM, WHO, and mortality meta-analyses. Not a diagnostic tool.')}
       </p>
     </div>
   )

@@ -5,6 +5,7 @@ import {
 } from 'recharts'
 import type { Workout } from './types'
 import { chartMargin, COLORS, shortDate, StatBox, Legend, AISummaryButton, TabHeader, fmt, useChartTheme, ChartTooltip } from './ui'
+import { useI18n } from './i18n'
 
 // Simplified TRIMP (Training Impulse) calculation
 // Uses duration * HR intensity factor. When HR is missing, fall back to calories-based estimate.
@@ -89,6 +90,7 @@ interface Props {
 }
 
 export default function TrainingLoad({ workouts, cutoffDate }: Props) {
+  const { tText } = useI18n()
   const ct = useChartTheme()
   const dailyLoads = useMemo(() => buildDailyLoads(workouts), [workouts])
 
@@ -138,7 +140,7 @@ export default function TrainingLoad({ workouts, cutoffDate }: Props) {
   const currentTSB = latest?.tsb ?? null
 
   const formStatus = currentTSB !== null
-    ? currentTSB > 15 ? 'Freshened' : currentTSB > 0 ? 'Fresh' : currentTSB > -15 ? 'Optimal' : currentTSB > -30 ? 'Fatigued' : 'Overreaching'
+    ? currentTSB > 15 ? tText('Freshened') : currentTSB > 0 ? tText('Fresh') : currentTSB > -15 ? tText('Optimal') : currentTSB > -30 ? tText('Fatigued') : tText('Overreaching')
     : null
   const formColor = currentTSB !== null
     ? currentTSB > 15 ? COLORS.blue : currentTSB > 0 ? COLORS.green : currentTSB > -15 ? COLORS.cyan : currentTSB > -30 ? COLORS.orange : COLORS.red
@@ -148,27 +150,27 @@ export default function TrainingLoad({ workouts, cutoffDate }: Props) {
   const recentWeekTrimp = weeklyLoad.length > 0 ? weeklyLoad[weeklyLoad.length - 1].trimp : null
 
   if (chartData.length < 7) {
-    return <div className="text-zinc-500 text-center py-20">Not enough workout data to compute training load (need at least 7 days).</div>
+    return <div className="text-zinc-500 text-center py-20">{tText('Not enough workout data to compute training load (need at least 7 days).')}</div>
   }
 
   return (
     <div className="space-y-6">
-      <TabHeader title="Training Load" description="Track your fitness, fatigue, and form using the TRIMP model — based on workout duration and heart rate intensity." />
+      <TabHeader title={tText('Training Load')} description={tText('Track your fitness, fatigue, and form using the TRIMP model — based on workout duration and heart rate intensity.')} />
 
       {/* Summary stats */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-        {currentCTL !== null && <StatBox label="Fitness (CTL)" value={fmt(currentCTL, 0)} color={COLORS.blue} sub="42-day chronic load" />}
-        {currentATL !== null && <StatBox label="Fatigue (ATL)" value={fmt(currentATL, 0)} color={COLORS.red} sub="7-day acute load" />}
-        {currentTSB !== null && <StatBox label="Form (TSB)" value={`${currentTSB > 0 ? '+' : ''}${fmt(currentTSB, 0)}`} color={formColor} sub={formStatus ?? undefined} />}
-        {recentWeekTrimp !== null && <StatBox label="Weekly Load" value={fmt(recentWeekTrimp, 0)} unit="TRIMP" sub="Current week" />}
-        <StatBox label="Workouts" value={`${workouts.length}`} sub="Total recorded" />
+        {currentCTL !== null && <StatBox label={tText('Fitness (CTL)')} value={fmt(currentCTL, 0)} color={COLORS.blue} sub={tText('42-day chronic load')} />}
+        {currentATL !== null && <StatBox label={tText('Fatigue (ATL)')} value={fmt(currentATL, 0)} color={COLORS.red} sub={tText('7-day acute load')} />}
+        {currentTSB !== null && <StatBox label={tText('Form (TSB)')} value={`${currentTSB > 0 ? '+' : ''}${fmt(currentTSB, 0)}`} color={formColor} sub={formStatus ?? undefined} />}
+        {recentWeekTrimp !== null && <StatBox label={tText('Weekly Load')} value={fmt(recentWeekTrimp, 0)} unit="TRIMP" sub={tText('Current week')} />}
+        <StatBox label={tText('Workouts')} value={`${workouts.length}`} sub={tText('Total recorded')} />
       </div>
 
       {/* Explainer */}
       <div className="bg-zinc-900 rounded-xl border border-zinc-800 p-4">
-        <h3 className="text-sm font-medium text-zinc-300 mb-1.5">How to read this</h3>
+        <h3 className="text-sm font-medium text-zinc-300 mb-1.5">{tText('How to read this')}</h3>
         <p className="text-xs text-zinc-500 leading-relaxed">
-          <strong className="text-zinc-300">Fitness (CTL)</strong> is your long-term training load — it builds slowly over weeks. <strong className="text-zinc-300">Fatigue (ATL)</strong> is your short-term load — it spikes with hard training. <strong className="text-zinc-300">Form (TSB)</strong> is the balance: when fitness exceeds fatigue, you're fresh and ready to perform. When fatigue exceeds fitness, you need recovery. The sweet spot for racing is TSB between -10 and +15.
+          {tText("Fitness (CTL) is your long-term training load — it builds slowly over weeks. Fatigue (ATL) is your short-term load — it spikes with hard training. Form (TSB) is the balance: when fitness exceeds fatigue, you're fresh and ready to perform. When fatigue exceeds fitness, you need recovery. The sweet spot for racing is TSB between -10 and +15.")}
         </p>
       </div>
 
@@ -176,10 +178,10 @@ export default function TrainingLoad({ workouts, cutoffDate }: Props) {
       <div className="bg-zinc-900 rounded-xl border border-zinc-800 p-4">
         <div className="flex items-start justify-between mb-1">
           <div>
-            <h3 className="text-sm font-medium text-zinc-300">Fitness, Fatigue & Form</h3>
-            <p className="text-xs text-zinc-500 mt-0.5">Blue = long-term fitness, red = short-term fatigue, green area = form (freshness).</p>
+            <h3 className="text-sm font-medium text-zinc-300">{tText('Fitness, Fatigue & Form')}</h3>
+            <p className="text-xs text-zinc-500 mt-0.5">{tText('Blue = long-term fitness, red = short-term fatigue, green area = form (freshness).')}</p>
           </div>
-          <AISummaryButton title="Fitness, Fatigue & Form" description="ATL/CTL/TSB training load model" chartData={chartData} />
+          <AISummaryButton title={tText('Fitness, Fatigue & Form')} description={tText('ATL/CTL/TSB training load model')} chartData={chartData} />
         </div>
         <div className="h-72">
           <ResponsiveContainer width="100%" height="100%" minWidth={0} debounce={1}>
@@ -201,9 +203,9 @@ export default function TrainingLoad({ workouts, cutoffDate }: Props) {
               <ReferenceArea y1={-10} y2={15} fill="#22c55e" fillOpacity={0.03} />
               <ReferenceLine y={0} stroke="#71717a" strokeDasharray="3 3" />
               <Tooltip content={<ChartTooltip formatter={(v, name) => {
-                  if (name === 'ctl') return [`${v}`, 'Fitness (CTL)']
-                  if (name === 'atl') return [`${v}`, 'Fatigue (ATL)']
-                  if (name === 'tsb') return [`${v}`, 'Form (TSB)']
+                  if (name === 'ctl') return [`${v}`, tText('Fitness (CTL)')]
+                  if (name === 'atl') return [`${v}`, tText('Fatigue (ATL)')]
+                  if (name === 'tsb') return [`${v}`, tText('Form (TSB)')]
                   return [`${v}`, 'TRIMP']
                 }} />} />
               <Area type="monotone" dataKey="tsb" stroke="#22c55e" fill="url(#tsbPosGrad)" strokeWidth={1} dot={false} />
@@ -213,12 +215,12 @@ export default function TrainingLoad({ workouts, cutoffDate }: Props) {
           </ResponsiveContainer>
         </div>
         <div className="flex gap-4 justify-center mt-2">
-          <Legend color={COLORS.blue} label="Fitness (CTL)" />
-          <Legend color={COLORS.red} label="Fatigue (ATL)" />
-          <Legend color="#22c55e" label="Form (TSB)" />
+          <Legend color={COLORS.blue} label={tText('Fitness (CTL)')} />
+          <Legend color={COLORS.red} label={tText('Fatigue (ATL)')} />
+          <Legend color="#22c55e" label={tText('Form (TSB)')} />
           <div className="flex items-center gap-1.5 text-xs text-zinc-600">
             <div className="w-4 h-2 rounded-sm bg-green-500/10 border border-green-500/20" />
-            Race-ready zone
+            {tText('Race-ready zone')}
           </div>
         </div>
       </div>
@@ -228,10 +230,10 @@ export default function TrainingLoad({ workouts, cutoffDate }: Props) {
         <div className="bg-zinc-900 rounded-xl border border-zinc-800 p-4">
           <div className="flex items-start justify-between mb-1">
             <div>
-              <h3 className="text-sm font-medium text-zinc-300">Weekly Training Load</h3>
-              <p className="text-xs text-zinc-500 mt-0.5">Total TRIMP per week. Avoid increasing more than 10-15% week over week.</p>
+              <h3 className="text-sm font-medium text-zinc-300">{tText('Weekly Training Load')}</h3>
+              <p className="text-xs text-zinc-500 mt-0.5">{tText('Total TRIMP per week. Avoid increasing more than 10-15% week over week.')}</p>
             </div>
-            <AISummaryButton title="Weekly Training Load" description="Weekly TRIMP totals" chartData={weeklyLoad} />
+            <AISummaryButton title={tText('Weekly Training Load')} description={tText('Weekly TRIMP totals')} chartData={weeklyLoad} />
           </div>
           <div className="h-56">
             <ResponsiveContainer width="100%" height="100%" minWidth={0} debounce={1}>
@@ -245,7 +247,7 @@ export default function TrainingLoad({ workouts, cutoffDate }: Props) {
                 <CartesianGrid strokeDasharray="3 3" stroke={ct.grid} />
                 <XAxis dataKey="week" tick={{ fontSize: 10, fill: ct.tick }} tickFormatter={shortDate} />
                 <YAxis tick={{ fontSize: 10, fill: ct.tick }} />
-                <Tooltip content={<ChartTooltip formatter={(v, name) => [name === 'trimp' ? `${v} TRIMP` : `${v} sessions`, name === 'trimp' ? 'Load' : 'Workouts']} />} />
+                <Tooltip content={<ChartTooltip formatter={(v, name) => [name === 'trimp' ? `${v} TRIMP` : `${v} ${tText('sessions')}`, name === 'trimp' ? tText('Load') : tText('Workouts')]} />} />
                 <Area type="monotone" dataKey="trimp" stroke={COLORS.orange} fill="url(#weeklyTrimpGrad)" strokeWidth={1.5} dot={false} />
               </ComposedChart>
             </ResponsiveContainer>

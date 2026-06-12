@@ -4,6 +4,7 @@ import type { HealthData, WorkerMessage, DailyMetrics } from './types'
 import Dashboard from './Dashboard'
 import { parseGarminExport } from './garminParser'
 import { ProgressBar } from './ui'
+import { useI18n } from './i18n'
 
 const CACHE_DB = 'health-dashboard-cache'
 const CACHE_STORE = 'data'
@@ -67,17 +68,18 @@ async function loadFromCache(): Promise<HealthData | null> {
           resolve(null)
           return
         }
+        const { gpxFileContents, ecgFileContents, dailyMetrics: dm, ...rest } = cached.data
+
         // Reconstruct File objects from cached strings
         const gpxFiles = new Map<string, File>()
-        for (const [name, content] of cached.data.gpxFileContents || []) {
+        for (const [name, content] of gpxFileContents || []) {
           gpxFiles.set(name, new File([content], name, { type: 'application/gpx+xml' }))
         }
         const ecgFiles = new Map<string, File>()
-        for (const [name, content] of cached.data.ecgFileContents || []) {
+        for (const [name, content] of ecgFileContents || []) {
           ecgFiles.set(name, new File([content], name, { type: 'text/csv' }))
         }
 
-        const { gpxFileContents: _g, ecgFileContents: _e, dailyMetrics: dm, ...rest } = cached.data
         resolve({
           ...rest,
           dailyMetrics: new Map(dm),
@@ -95,40 +97,40 @@ type SourceMode = 'apple' | 'garmin'
 type AppState =
   | { phase: 'upload' }
   | { phase: 'loading-cache' }
-  | { phase: 'parsing'; progress: number; currentDate: string; bytesRead: number; totalBytes: number; startedAt: number }
+  | { phase: 'parsing'; progress: number; currentDate: string; bytesRead: number; totalBytes: number; startedAt: number; elapsedMs: number }
   | { phase: 'ready'; data: HealthData }
   | { phase: 'error'; message: string }
 
-function classifyError(message: string): { title: string; hint: string; showExportSteps?: boolean } {
+function classifyError(message: string, t: ReturnType<typeof useI18n>['t']): { title: string; hint: string; showExportSteps?: boolean } {
   const m = message.toLowerCase()
   if (m.includes('no apple health export') || m.includes('export.xml')) {
     return {
-      title: "Couldn't find an Apple Health export in that folder.",
-      hint: 'Make sure you unzipped the export and selected the folder that contains export.xml (not the zip itself).',
+      title: t('appleExportMissingTitle'),
+      hint: t('appleExportMissingHint'),
       showExportSteps: true,
     }
   }
   if (m.includes('no garmin')) {
     return {
-      title: "Couldn't find Garmin data in that folder.",
-      hint: 'Select the unzipped export folder — the one that contains the DI_CONNECT directory with .json files.',
+      title: t('garminMissingTitle'),
+      hint: t('garminMissingHint'),
       showExportSteps: true,
     }
   }
   if (m.includes('quota') || m.includes('exceeded')) {
     return {
-      title: 'Your browser ran out of storage for the cached parse.',
-      hint: 'Free up some space in this site’s storage and try again, or use a different browser.',
+      title: t('storageTitle'),
+      hint: t('storageHint'),
     }
   }
   if (m.includes('failed to parse garmin')) {
     return {
-      title: "Couldn't parse the Garmin export.",
-      hint: 'Some files in the export may be corrupted or in an unexpected format. Try re-downloading the export from Garmin.',
+      title: t('garminParseTitle'),
+      hint: t('garminParseHint'),
     }
   }
   return {
-    title: 'Something went wrong while parsing your data.',
+    title: t('genericParseTitle'),
     hint: message,
   }
 }
@@ -162,6 +164,7 @@ function UploadSkeleton() {
 }
 
 export default function App() {
+  const { t } = useI18n()
   const [state, setState] = useState<AppState>({ phase: 'loading-cache' })
   const [dragging, setDragging] = useState(false)
   const [sourceMode, setSourceMode] = useState<SourceMode>('apple')
@@ -180,8 +183,17 @@ export default function App() {
   }, [])
 
   const handleFile = useCallback((file: File) => {
+    const inputType = isZipFile(file) ? 'zip' : 'xml'
     const startedAt = performance.now()
-    setState({ phase: 'parsing', progress: 0, currentDate: '', bytesRead: 0, totalBytes: file.size, startedAt })
+    setState({
+      phase: 'parsing',
+      progress: 0,
+      currentDate: inputType === 'zip' ? t('extractingAppleZip') : '',
+      bytesRead: 0,
+      totalBytes: file.size,
+      startedAt,
+      elapsedMs: 0,
+    })
 
     const worker = new Worker(new URL('./parseWorker.ts', import.meta.url), { type: 'module' })
 
@@ -195,9 +207,12 @@ export default function App() {
           bytesRead: msg.bytesRead ?? 0,
           totalBytes: msg.totalBytes ?? file.size,
           startedAt,
+          elapsedMs: performance.now() - startedAt,
         })
       } else if (msg.type === 'complete') {
         const dailyMetrics = new Map<string, DailyMetrics>(msg.data.dailyMetrics)
+        const gpxFiles = msg.data.gpxFiles ? new Map<string, File>(msg.data.gpxFiles) : gpxFilesRef.current
+        const ecgFiles = msg.data.ecgFiles ? new Map<string, File>(msg.data.ecgFiles) : ecgFilesRef.current
         const healthData: HealthData = {
             profile: msg.data.profile,
             dailyMetrics,
@@ -215,8 +230,8 @@ export default function App() {
             dailyDaylight: msg.data.dailyDaylight,
             dailyMobility: msg.data.dailyMobility,
             runningDynamics: msg.data.runningDynamics,
-            gpxFiles: gpxFilesRef.current,
-            ecgFiles: ecgFilesRef.current,
+            gpxFiles,
+            ecgFiles,
             exportDate: msg.data.exportDate,
             sourceMode: 'apple',
           }
@@ -234,38 +249,70 @@ export default function App() {
       worker.terminate()
     }
 
-    worker.postMessage({ file })
-  }, [])
+    worker.postMessage({ file, inputType })
+  }, [t])
 
   const handleGarminFiles = useCallback(async (files: File[]) => {
     const jsonFiles = files.filter(f => f.name.endsWith('.json'))
     if (jsonFiles.length === 0) {
-      setState({ phase: 'error', message: 'No Garmin JSON data files found. Make sure you selected the Garmin export folder containing DI_CONNECT.' })
+      setState({ phase: 'error', message: t('noGarminFiles') })
       return
     }
     const startedAt = performance.now()
-    setState({ phase: 'parsing', progress: 0, currentDate: 'Processing Garmin data...', bytesRead: 0, totalBytes: 0, startedAt })
+    setState({ phase: 'parsing', progress: 0, currentDate: t('processingGarmin'), bytesRead: 0, totalBytes: 0, startedAt, elapsedMs: 0 })
     try {
       const data = await parseGarminExport(jsonFiles, (msg) => {
-        setState({ phase: 'parsing', progress: 0, currentDate: msg, bytesRead: 0, totalBytes: 0, startedAt })
+        setState({ phase: 'parsing', progress: 0, currentDate: msg, bytesRead: 0, totalBytes: 0, startedAt, elapsedMs: performance.now() - startedAt })
       })
       setState({ phase: 'ready', data })
       saveToCache(data)
     } catch (err) {
-      setState({ phase: 'error', message: `Failed to parse Garmin data: ${err}` })
+      setState({ phase: 'error', message: `${t('failedGarmin')}: ${err}` })
     }
-  }, [])
+  }, [t])
+
+  const handleAppleFiles = useCallback((files: File[]) => {
+    gpxFilesRef.current = new Map()
+    ecgFilesRef.current = new Map()
+
+    const zipFile = files.find(isZipFile)
+    if (zipFile) {
+      handleFile(zipFile)
+      return
+    }
+
+    for (const f of files) {
+      if (isGpxFile(f)) {
+        gpxFilesRef.current.set(f.name, f)
+      } else if (isEcgFile(f)) {
+        ecgFilesRef.current.set(f.name, f)
+      }
+    }
+
+    const xmlFile = findAppleXmlFile(files)
+    if (xmlFile) {
+      handleFile(xmlFile)
+      return
+    }
+
+    setState({ phase: 'error', message: t('noAppleXml') })
+  }, [handleFile, t])
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault()
-    if (sourceMode === 'garmin') {
-      collectAllFilesFromDrop(e.dataTransfer.items).then(files => handleGarminFiles(files))
-      return
-    }
-    gpxFilesRef.current = new Map()
-    ecgFilesRef.current = new Map()
-    findXmlFile(e.dataTransfer.items, handleFile, gpxFilesRef.current, ecgFilesRef.current)
-  }, [handleFile, sourceMode, handleGarminFiles])
+    collectAllFilesFromDrop(e.dataTransfer.items)
+      .then(files => {
+        if (sourceMode === 'garmin') handleGarminFiles(files)
+        else handleAppleFiles(files)
+      })
+      .catch(err => setState({ phase: 'error', message: String(err) }))
+  }, [sourceMode, handleGarminFiles, handleAppleFiles])
+
+  const handleZipSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) handleAppleFiles([file])
+    e.currentTarget.value = ''
+  }, [handleAppleFiles])
 
   const handleFolderSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files
@@ -273,37 +320,13 @@ export default function App() {
 
     if (sourceMode === 'garmin') {
       handleGarminFiles(Array.from(files))
+      e.currentTarget.value = ''
       return
     }
 
-    // Collect GPX and ECG files
-    gpxFilesRef.current = new Map()
-    ecgFilesRef.current = new Map()
-    for (let i = 0; i < files.length; i++) {
-      const f = files[i]
-      if (f.name.endsWith('.gpx')) {
-        gpxFilesRef.current.set(f.name, f)
-      } else if (f.name.startsWith('ecg_') && f.name.endsWith('.csv')) {
-        ecgFilesRef.current.set(f.name, f)
-      }
-    }
-
-    for (let i = 0; i < files.length; i++) {
-      const f = files[i]
-      if (f.name.endsWith('.xml') && f.name !== 'export_cda.xml' && f.size > 1000000) {
-        handleFile(f)
-        return
-      }
-    }
-    // fallback: try any xml
-    for (let i = 0; i < files.length; i++) {
-      if (files[i].name.endsWith('.xml') && files[i].name !== 'export_cda.xml') {
-        handleFile(files[i])
-        return
-      }
-    }
-    setState({ phase: 'error', message: 'No Apple Health export XML file found in the selected folder.' })
-  }, [handleFile, sourceMode, handleGarminFiles])
+    handleAppleFiles(Array.from(files))
+    e.currentTarget.value = ''
+  }, [sourceMode, handleGarminFiles, handleAppleFiles])
 
   if (state.phase === 'ready') {
     return <Dashboard data={state.data} onReset={() => { setState({ phase: 'upload' }); indexedDB.deleteDatabase(CACHE_DB) }} />
@@ -319,13 +342,13 @@ export default function App() {
 
         {/* Header */}
         <div className="text-center space-y-3">
-          <h1 className="text-2xl font-semibold tracking-tight">Health Dashboard</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">{t('appTitle')}</h1>
           <p className="text-zinc-500 text-[13px] leading-relaxed">
-            Visualize your health data.
+            {t('appSubtitle')}
           </p>
           <p className="inline-flex items-center gap-1.5 text-zinc-600 text-[12px]">
             <Lock size={11} />
-            Everything runs in your browser — nothing is uploaded
+            {t('localOnly')}
           </p>
         </div>
 
@@ -341,7 +364,7 @@ export default function App() {
               }`}
             >
               <Apple size={16} />
-              Apple Health
+              {t('appleHealth')}
             </button>
             <button
               onClick={() => setSourceMode('garmin')}
@@ -352,7 +375,7 @@ export default function App() {
               }`}
             >
               <Watch size={16} />
-              Garmin
+              {t('garmin')}
             </button>
           </div>
         )}
@@ -370,70 +393,88 @@ export default function App() {
             >
               <Upload size={28} className="mx-auto text-zinc-600" />
               <div>
-                <p className="text-[15px] text-zinc-200 mb-1">Drop your export folder here</p>
-                <p className="text-zinc-600 text-xs">or select it manually</p>
+                <p className="text-[15px] text-zinc-200 mb-1">{sourceMode === 'apple' ? t('dropAppleExport') : t('dropFolder')}</p>
+                <p className="text-zinc-600 text-xs">{t('selectManually')}</p>
               </div>
-              <label className="inline-flex items-center gap-2 px-5 py-2.5 bg-zinc-100 text-zinc-900 rounded-xl text-[13px] font-medium cursor-pointer hover:bg-white transition-colors shadow-sm">
-                <FolderOpen size={14} />
-                Select folder
-                <input
-                  type="file"
-                  // @ts-expect-error webkitdirectory is non-standard
-                  webkitdirectory=""
-                  directory=""
-                  multiple
-                  onChange={handleFolderSelect}
-                  className="hidden"
-                />
-              </label>
+              <div className="flex flex-wrap justify-center gap-2">
+                {sourceMode === 'apple' && (
+                  <label className="inline-flex items-center gap-2 px-5 py-2.5 bg-zinc-100 text-zinc-900 rounded-xl text-[13px] font-medium cursor-pointer hover:bg-white transition-colors shadow-sm">
+                    <Upload size={14} />
+                    {t('selectZip')}
+                    <input
+                      type="file"
+                      accept=".zip,application/zip,application/x-zip-compressed"
+                      onChange={handleZipSelect}
+                      className="hidden"
+                    />
+                  </label>
+                )}
+                <label className={`inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-[13px] font-medium cursor-pointer transition-colors shadow-sm ${
+                  sourceMode === 'apple'
+                    ? 'bg-zinc-800 text-zinc-300 hover:bg-zinc-700'
+                    : 'bg-zinc-100 text-zinc-900 hover:bg-white'
+                }`}>
+                  <FolderOpen size={14} />
+                  {t('selectFolder')}
+                  <input
+                    type="file"
+                    // @ts-expect-error webkitdirectory is non-standard
+                    webkitdirectory=""
+                    directory=""
+                    multiple
+                    onChange={handleFolderSelect}
+                    className="hidden"
+                  />
+                </label>
+              </div>
             </div>
 
             {/* Instructions */}
             <details className="group text-[13px]">
               <summary className="text-zinc-500 cursor-pointer select-none hover:text-zinc-400 transition-colors list-none flex items-center justify-center gap-1.5">
                 <svg width="12" height="12" viewBox="0 0 12 12" className="transition-transform group-open:rotate-90" fill="none"><path d="M4.5 2.5L7.5 6L4.5 9.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                {sourceMode === 'apple' ? 'How to export from Apple Health' : 'How to export from Garmin Connect'}
+                {sourceMode === 'apple' ? t('appleExportHelp') : t('garminExportHelp')}
               </summary>
               {sourceMode === 'apple' ? (
                 <ol className="mt-4 space-y-3 text-zinc-500">
                   <li className="flex gap-3">
                     <span className="text-zinc-600 tabular-nums shrink-0">1.</span>
-                    <span>Open the <span className="text-zinc-300">Health</span> app and tap your profile picture (top right)</span>
+                    <span>{t('appleStep1')}</span>
                   </li>
                   <li className="flex gap-3">
                     <span className="text-zinc-600 tabular-nums shrink-0">2.</span>
-                    <span>Scroll to the very bottom</span>
+                    <span>{t('appleStep2')}</span>
                   </li>
                   <li className="flex gap-3">
                     <span className="text-zinc-600 tabular-nums shrink-0">3.</span>
-                    <span>Tap <span className="text-zinc-300">"Export All Health Data"</span></span>
+                    <span>{t('appleStep3')}</span>
                   </li>
                   <li className="flex gap-3">
                     <span className="text-zinc-600 tabular-nums shrink-0">4.</span>
-                    <span>Save the .zip to iCloud or Files</span>
+                    <span>{t('appleStep4')}</span>
                   </li>
                   <li className="flex gap-3">
                     <span className="text-zinc-600 tabular-nums shrink-0">5.</span>
-                    <span>Unzip the file and upload the folder here</span>
+                    <span>{t('appleStep5')}</span>
                   </li>
                 </ol>
               ) : (
                 <ol className="mt-4 space-y-3 text-zinc-500">
                   <li className="flex gap-3">
                     <span className="text-zinc-600 tabular-nums shrink-0">1.</span>
-                    <span>Go to <span className="text-zinc-300">garmin.com/account/datamanagement</span></span>
+                    <span>{t('garminStep1')}</span>
                   </li>
                   <li className="flex gap-3">
                     <span className="text-zinc-600 tabular-nums shrink-0">2.</span>
-                    <span>Click <span className="text-zinc-300">"Request Data Export"</span></span>
+                    <span>{t('garminStep2')}</span>
                   </li>
                   <li className="flex gap-3">
                     <span className="text-zinc-600 tabular-nums shrink-0">3.</span>
-                    <span>Wait for the email with the download link</span>
+                    <span>{t('garminStep3')}</span>
                   </li>
                   <li className="flex gap-3">
                     <span className="text-zinc-600 tabular-nums shrink-0">4.</span>
-                    <span>Unzip the file and upload the folder here</span>
+                    <span>{t('garminStep4')}</span>
                   </li>
                 </ol>
               )}
@@ -443,17 +484,17 @@ export default function App() {
 
         {state.phase === 'parsing' && (() => {
           const pct = state.totalBytes > 0 ? state.bytesRead / state.totalBytes : 0
-          const elapsed = performance.now() - state.startedAt
+          const elapsed = state.elapsedMs
           const rate = state.bytesRead > 0 && elapsed > 0 ? state.bytesRead / elapsed : 0
           const remaining = rate > 0 && state.totalBytes > 0 ? (state.totalBytes - state.bytesRead) / rate : 0
           const hasProgress = state.totalBytes > 0
           return (
             <div className="rounded-2xl bg-zinc-900 p-8 space-y-5">
               <div className="flex items-baseline justify-between gap-4">
-                <p className="text-[15px] text-zinc-200">Parsing your data</p>
+                <p className="text-[15px] text-zinc-200">{t('parsingData')}</p>
                 {hasProgress && (
                   <p className="text-xs text-zinc-500 tabular-nums">
-                    {Math.round(pct * 100)}% · {formatETA(remaining)} left
+                    {Math.round(pct * 100)}% · {formatETA(remaining)} {t('left')}
                   </p>
                 )}
               </div>
@@ -467,8 +508,8 @@ export default function App() {
               <div className="flex items-baseline justify-between gap-4 text-xs tabular-nums">
                 <span className="text-zinc-500">
                   {state.progress > 0
-                    ? `${(state.progress / 1000000).toFixed(1)}M records`
-                    : 'Starting…'}
+                    ? `${(state.progress / 1000000).toFixed(1)}M ${t('records')}`
+                    : t('starting')}
                 </span>
                 {state.currentDate && (
                   <span className="text-zinc-600">{state.currentDate}</span>
@@ -479,7 +520,7 @@ export default function App() {
         })()}
 
         {state.phase === 'error' && (() => {
-          const err = classifyError(state.message)
+          const err = classifyError(state.message, t)
           return (
             <div className="rounded-2xl bg-zinc-900 p-8 space-y-5">
               <div className="flex items-start gap-3">
@@ -496,10 +537,10 @@ export default function App() {
                   onClick={() => setState({ phase: 'upload' })}
                   className="px-4 py-2 bg-zinc-100 text-zinc-900 rounded-lg text-xs font-medium hover:bg-white transition-colors"
                 >
-                  Try again
+                  {t('tryAgain')}
                 </button>
                 {err.showExportSteps && (
-                  <span className="text-[11px] text-zinc-600">See export steps on the upload screen</span>
+                  <span className="text-[11px] text-zinc-600">{t('seeExportSteps')}</span>
                 )}
               </div>
             </div>
@@ -538,53 +579,47 @@ async function collectAllFilesFromDrop(items: DataTransferItemList): Promise<Fil
 
   for (let i = 0; i < items.length; i++) {
     const entry = items[i].webkitGetAsEntry?.()
-    if (entry) await processEntry(entry)
+    if (entry) {
+      await processEntry(entry)
+    } else {
+      const file = items[i].getAsFile()
+      if (file) files.push(file)
+    }
   }
   return files
 }
 
-async function findXmlFile(items: DataTransferItemList, onFile: (f: File) => void, gpxFiles: Map<string, File>, ecgFiles: Map<string, File>) {
-  for (let i = 0; i < items.length; i++) {
-    const item = items[i]
-    const entry = item.webkitGetAsEntry?.()
-    if (entry?.isDirectory) {
-      const dirReader = (entry as FileSystemDirectoryEntry).createReader()
-      const entries = await readAllEntries(dirReader)
+function baseName(path: string): string {
+  return path.split('/').pop() || path
+}
 
-      // Also check subdirectories for GPX files (workout-routes/)
-      for (const e of entries) {
-        if (e.isDirectory) {
-          const subReader = (e as FileSystemDirectoryEntry).createReader()
-          const subEntries = await readAllEntries(subReader)
-          for (const se of subEntries) {
-            if (se.isFile && se.name.endsWith('.gpx')) {
-              const file = await new Promise<File>(resolve => (se as FileSystemFileEntry).file(resolve))
-              gpxFiles.set(se.name, file)
-            } else if (se.isFile && se.name.startsWith('ecg_') && se.name.endsWith('.csv')) {
-              const file = await new Promise<File>(resolve => (se as FileSystemFileEntry).file(resolve))
-              ecgFiles.set(se.name, file)
-            }
-          }
-        }
-      }
+function filePath(file: File): string {
+  return (file as File & { webkitRelativePath?: string }).webkitRelativePath || file.name
+}
 
-      for (const e of entries) {
-        if (e.isFile && e.name.endsWith('.xml') && e.name !== 'export_cda.xml') {
-          const file = await new Promise<File>((resolve) => {
-            ;(e as FileSystemFileEntry).file(resolve)
-          })
-          if (file.size > 1000000) {
-            onFile(file)
-            return
-          }
-        }
-      }
-    } else if (entry?.isFile && entry.name.endsWith('.xml')) {
-      const file = await new Promise<File>((resolve) => {
-        ;(entry as FileSystemFileEntry).file(resolve)
-      })
-      onFile(file)
-      return
-    }
-  }
+function isZipFile(file: File): boolean {
+  const lower = file.name.toLowerCase()
+  return lower.endsWith('.zip') || file.type === 'application/zip' || file.type === 'application/x-zip-compressed'
+}
+
+function isGpxFile(file: File): boolean {
+  return file.name.toLowerCase().endsWith('.gpx')
+}
+
+function isEcgFile(file: File): boolean {
+  const lower = file.name.toLowerCase()
+  return lower.startsWith('ecg_') && lower.endsWith('.csv')
+}
+
+function findAppleXmlFile(files: File[]): File | null {
+  const xmlFiles = files.filter(file => {
+    const name = baseName(filePath(file)).toLowerCase()
+    return name.endsWith('.xml') && name !== 'export_cda.xml'
+  })
+  return (
+    xmlFiles.find(file => baseName(filePath(file)).toLowerCase() === 'export.xml') ||
+    xmlFiles.find(file => file.size > 1000000) ||
+    xmlFiles[0] ||
+    null
+  )
 }

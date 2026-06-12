@@ -6,8 +6,10 @@ import {
 import type { BodyRecord } from './types'
 import type { Granularity } from './analysis'
 import { StatBox, chartMargin, COLORS, shortDate, Legend, AISummaryButton, TabHeader, useChartTheme, ChartTooltip } from './ui'
+import { useI18n } from './i18n'
 
 export default function BodyComposition({ bodyRecords, cutoffDate, granularity: _granularity }: { bodyRecords: BodyRecord[]; cutoffDate: string; granularity: Granularity }) {
+  const { tText } = useI18n()
   const ct = useChartTheme()
   const filtered = useMemo(() => {
     if (!cutoffDate) return bodyRecords
@@ -89,17 +91,17 @@ export default function BodyComposition({ bodyRecords, cutoffDate, granularity: 
     : null
 
   if (!hasWeight && !hasBodyFat && !hasLeanMass && !hasBmi) {
-    return <div className="text-zinc-500 text-center py-20">No body composition data found in your export.</div>
+    return <div className="text-zinc-500 text-center py-20">{tText('No body composition data found in your export.')}</div>
   }
 
   return (
     <div className="space-y-6">
-      <TabHeader title="Body Composition" description="Weight, body fat percentage, BMI, and lean mass trends over time." />
+      <TabHeader title={tText('Body Composition')} description={tText('Weight, body fat percentage, BMI, and lean mass trends over time.')} />
       {/* Summary */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
         {latest?.weight && (
           <StatBox
-            label="Current Weight"
+            label={tText('Current Weight')}
             value={`${latest.weight.toFixed(1)}`}
             unit="kg"
             color={COLORS.orange}
@@ -107,11 +109,11 @@ export default function BodyComposition({ bodyRecords, cutoffDate, granularity: 
           />
         )}
         {latest?.bodyFat && (
-          <StatBox label="Body Fat" value={`${latest.bodyFat.toFixed(1)}`} unit="%" color={COLORS.red} sub="Latest" />
+          <StatBox label={tText('Body Fat')} value={`${latest.bodyFat.toFixed(1)}`} unit="%" color={COLORS.red} sub={tText('Latest')} />
         )}
         {latest?.leanMass && (
           <StatBox
-            label="Lean Mass"
+            label={tText('Lean Mass')}
             value={`${latest.leanMass.toFixed(1)}`}
             unit="kg"
             color={COLORS.green}
@@ -119,17 +121,17 @@ export default function BodyComposition({ bodyRecords, cutoffDate, granularity: 
           />
         )}
         {latest?.bmi && (
-          <StatBox label="BMI" value={`${latest.bmi.toFixed(1)}`} color={COLORS.purple} sub={bmiCategory(latest.bmi)} />
+          <StatBox label="BMI" value={`${latest.bmi.toFixed(1)}`} color={COLORS.purple} sub={tText(bmiCategory(latest.bmi))} />
         )}
-        <StatBox label="Data Points" value={`${filtered.length}`} sub={`${earliest?.date} — ${latest?.date}`} />
+        <StatBox label={tText('Data Points')} value={`${filtered.length}`} sub={`${earliest?.date} — ${latest?.date}`} />
       </div>
 
       {/* Weight + Lean Mass combined */}
       {compositionData.length > 1 && hasLeanMass && (
         <div className="bg-zinc-900 rounded-xl border border-zinc-800 p-4">
           <div className="flex items-start justify-between mb-3">
-            <h3 className="text-sm font-medium text-zinc-300">Weight vs Lean Mass</h3>
-            <AISummaryButton title="Weight vs Lean Mass" chartData={compositionData} />
+            <h3 className="text-sm font-medium text-zinc-300">{tText('Weight vs Lean Mass')}</h3>
+            <AISummaryButton title={tText('Weight vs Lean Mass')} chartData={compositionData} />
           </div>
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%" minWidth={0} debounce={1}>
@@ -144,7 +146,7 @@ export default function BodyComposition({ bodyRecords, cutoffDate, granularity: 
                 <XAxis dataKey="date" tick={{ fontSize: 10, fill: ct.tick }} tickFormatter={shortDate} />
                 <YAxis domain={['auto', 'auto']} tick={{ fontSize: 10, fill: ct.tick }} />
                 <Tooltip content={<ChartTooltip formatter={(value, name) => {
-                    const label = name === 'weight' ? 'Weight' : name === 'leanMass' ? 'Lean Mass' : 'Fat Mass'
+                    const label = name === 'weight' ? tText('Weight') : name === 'leanMass' ? tText('Lean Mass') : tText('Fat Mass')
                     return [`${value} kg`, label]
                   }} />} />
                 <Area type="monotone" dataKey="weight" stroke={COLORS.orange} fill="url(#weightGrad)" strokeWidth={2} dot={{ r: 2 }} connectNulls />
@@ -156,9 +158,9 @@ export default function BodyComposition({ bodyRecords, cutoffDate, granularity: 
             </ResponsiveContainer>
           </div>
           <div className="flex gap-4 justify-center mt-2">
-            <Legend color={COLORS.orange} label="Weight" />
-            <Legend color={COLORS.green} label="Lean Mass" />
-            {compositionData.some(d => d.fatMass) && <Legend color={COLORS.red} label="Fat Mass" dashed />}
+            <Legend color={COLORS.orange} label={tText('Weight')} />
+            <Legend color={COLORS.green} label={tText('Lean Mass')} />
+            {compositionData.some(d => d.fatMass) && <Legend color={COLORS.red} label={tText('Fat Mass')} dashed />}
           </div>
         </div>
       )}
@@ -168,8 +170,8 @@ export default function BodyComposition({ bodyRecords, cutoffDate, granularity: 
         {weightData.length > 1 && !hasLeanMass && (
           <div className="bg-zinc-900 rounded-xl border border-zinc-800 p-4">
             <div className="flex items-start justify-between mb-3">
-              <h3 className="text-sm font-medium text-zinc-300">Weight</h3>
-              <AISummaryButton title="Weight" chartData={weightData} />
+              <h3 className="text-sm font-medium text-zinc-300">{tText('Weight')}</h3>
+              <AISummaryButton title={tText('Weight')} chartData={weightData} />
             </div>
             <div className="h-56">
               <ResponsiveContainer width="100%" height="100%" minWidth={0} debounce={1}>
@@ -183,7 +185,7 @@ export default function BodyComposition({ bodyRecords, cutoffDate, granularity: 
                   <CartesianGrid strokeDasharray="3 3" stroke={ct.grid} />
                   <XAxis dataKey="date" tick={{ fontSize: 10, fill: ct.tick }} tickFormatter={shortDate} />
                   <YAxis domain={['auto', 'auto']} tick={{ fontSize: 10, fill: ct.tick }} />
-                  <Tooltip content={<ChartTooltip formatter={(v) => [`${v} kg`, 'Weight']} />} />
+                  <Tooltip content={<ChartTooltip formatter={(v) => [`${v} kg`, tText('Weight')]} />} />
                   <Area type="monotone" dataKey="weight" stroke={COLORS.orange} fill="url(#weightStandaloneGrad)" strokeWidth={2} dot={{ r: 2 }} connectNulls />
                 </AreaChart>
               </ResponsiveContainer>
@@ -195,8 +197,8 @@ export default function BodyComposition({ bodyRecords, cutoffDate, granularity: 
         {bodyFatData.length > 1 && (
           <div className="bg-zinc-900 rounded-xl border border-zinc-800 p-4">
             <div className="flex items-start justify-between mb-3">
-              <h3 className="text-sm font-medium text-zinc-300">Body Fat %</h3>
-              <AISummaryButton title="Body Fat %" chartData={bodyFatData} />
+              <h3 className="text-sm font-medium text-zinc-300">{tText('Body Fat')} %</h3>
+              <AISummaryButton title={`${tText('Body Fat')} %`} chartData={bodyFatData} />
             </div>
             <div className="h-56">
               <ResponsiveContainer width="100%" height="100%" minWidth={0} debounce={1}>
@@ -210,7 +212,7 @@ export default function BodyComposition({ bodyRecords, cutoffDate, granularity: 
                   <CartesianGrid strokeDasharray="3 3" stroke={ct.grid} />
                   <XAxis dataKey="date" tick={{ fontSize: 10, fill: ct.tick }} tickFormatter={shortDate} />
                   <YAxis domain={['auto', 'auto']} tick={{ fontSize: 10, fill: ct.tick }} />
-                  <Tooltip content={<ChartTooltip formatter={(v) => [`${v}%`, 'Body Fat']} />} />
+                  <Tooltip content={<ChartTooltip formatter={(v) => [`${v}%`, tText('Body Fat')]} />} />
                   <Area type="monotone" dataKey="bodyFat" stroke={COLORS.red} fill="url(#bodyFatGrad)" strokeWidth={2} dot={{ r: 2 }} connectNulls />
                 </AreaChart>
               </ResponsiveContainer>
@@ -251,8 +253,8 @@ export default function BodyComposition({ bodyRecords, cutoffDate, granularity: 
         {leanMassData.length > 1 && !hasWeight && (
           <div className="bg-zinc-900 rounded-xl border border-zinc-800 p-4">
             <div className="flex items-start justify-between mb-3">
-              <h3 className="text-sm font-medium text-zinc-300">Lean Body Mass</h3>
-              <AISummaryButton title="Lean Body Mass" chartData={leanMassData} />
+              <h3 className="text-sm font-medium text-zinc-300">{tText('Lean Body Mass')}</h3>
+              <AISummaryButton title={tText('Lean Body Mass')} chartData={leanMassData} />
             </div>
             <div className="h-56">
               <ResponsiveContainer width="100%" height="100%" minWidth={0} debounce={1}>
@@ -266,7 +268,7 @@ export default function BodyComposition({ bodyRecords, cutoffDate, granularity: 
                   <CartesianGrid strokeDasharray="3 3" stroke={ct.grid} />
                   <XAxis dataKey="date" tick={{ fontSize: 10, fill: ct.tick }} tickFormatter={shortDate} />
                   <YAxis domain={['auto', 'auto']} tick={{ fontSize: 10, fill: ct.tick }} />
-                  <Tooltip content={<ChartTooltip formatter={(v) => [`${v} kg`, 'Lean Mass']} />} />
+                  <Tooltip content={<ChartTooltip formatter={(v) => [`${v} kg`, tText('Lean Mass')]} />} />
                   <Area type="monotone" dataKey="leanMass" stroke={COLORS.green} fill="url(#leanMassGrad)" strokeWidth={2} dot={{ r: 2 }} connectNulls />
                 </AreaChart>
               </ResponsiveContainer>
@@ -284,4 +286,3 @@ function bmiCategory(bmi: number): string {
   if (bmi < 30) return 'Overweight'
   return 'Obese'
 }
-

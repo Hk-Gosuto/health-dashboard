@@ -2,6 +2,7 @@ import { useMemo } from 'react'
 import type { DailyMetrics, Workout } from './types'
 import { TabHeader } from './ui'
 
+import { translateText as tText } from './i18n'
 interface YearStats {
   year: string
   totalSteps: number
@@ -98,7 +99,7 @@ export default function YearInReview({ metrics, workouts }: Props) {
   }, [metrics, workouts])
 
   if (years.length === 0) {
-    return <div className="text-zinc-500 text-center py-20">No data available.</div>
+    return <div className="text-zinc-500 text-center py-20">{tText('No data available.')}</div>
   }
 
   const rows: {
@@ -128,11 +129,11 @@ export default function YearInReview({ metrics, workouts }: Props) {
 
   return (
     <div className="overflow-x-auto">
-      <TabHeader title="Year in Review" description="A yearly breakdown of your key health and fitness metrics." />
+      <TabHeader title={tText('Year in Review')} description={tText('A yearly breakdown of your key health and fitness metrics.')} />
       <table className="w-full text-sm">
         <thead>
           <tr className="border-b border-zinc-800">
-            <th className="text-left py-3 pr-6 text-zinc-500 text-xs font-normal sticky left-0 bg-zinc-950 z-10">Metric</th>
+            <th className="text-left py-3 pr-6 text-zinc-500 text-xs font-normal sticky left-0 bg-zinc-950 z-10">{tText('Metric')}</th>
             {years.map(y => (
               <th key={y.year} className="text-right py-3 px-4 text-zinc-200 font-semibold text-lg">{y.year}</th>
             ))}

@@ -2,6 +2,9 @@ import { memo, useState, useCallback, useRef, useEffect } from 'react'
 import type { ReactNode } from 'react'
 import { ResponsiveContainer } from 'recharts'
 import { ArrowUpRight, ArrowDownRight } from 'lucide-react'
+import { useI18n, type Locale } from './i18n'
+import { detectAIProvider, fetchLocalAISummary } from './aiClient'
+import { buildChartSummaryPrompt } from './aiPrompts'
 
 // === Colors ===
 export const COLORS = {
@@ -162,6 +165,7 @@ export function StatBox({ label, value, unit, sub, latest, color, trend, sparkDa
   sparkData?: number[]
   icon?: ReactNode
 }) {
+  const { t } = useI18n()
   const accent = color || '#71717a'
   const hasSpark = !!(sparkData && sparkData.length >= 3)
   return (
@@ -195,7 +199,7 @@ export function StatBox({ label, value, unit, sub, latest, color, trend, sparkDa
             (sub || latest) && (
               <div className="text-zinc-500 text-[10px] mt-1.5 tabular-nums uppercase tracking-wider">
                 {sub}
-                {latest && <span className="text-zinc-400">{sub ? ' · ' : ''}LATEST {latest}</span>}
+                {latest && <span className="text-zinc-400">{sub ? ' · ' : ''}{t('latest').toUpperCase()} {latest}</span>}
               </div>
             )
           )}
@@ -282,13 +286,15 @@ function sampleData(data: unknown[], maxPoints = 60): unknown[] {
   return data.filter((_, i) => i % step === 0)
 }
 
-async function fetchAISummary(title: string, description: string | undefined, data: unknown[], apiKey: string): Promise<string> {
+async function fetchOpenRouterSummary(title: string, description: string | undefined, data: unknown[], apiKey: string, locale: Locale): Promise<string> {
   const sampled = sampleData(data)
-  const prompt = `You're a friendly health coach talking directly to the user about their personal health data. Speak in second person ("your", "you've", "you're"). Be warm, specific with numbers, and actionable. Keep it to 3-5 sentences. Highlight what's going well, flag anything worth watching, and suggest one concrete thing they could do.
-
-Chart: "${title}"${description ? `\nDescription: ${description}` : ''}
-Their data (${data.length} points${data.length > 60 ? ', sampled' : ''}):
-${JSON.stringify(sampled, null, 0)}`
+  const prompt = buildChartSummaryPrompt({
+    locale,
+    title,
+    description,
+    dataLength: data.length,
+    sampledData: sampled,
+  })
 
   const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
     method: 'POST',
@@ -316,9 +322,21 @@ ${JSON.stringify(sampled, null, 0)}`
   return body.choices[0].message.content
 }
 
+async function fetchAISummary(title: string, description: string | undefined, data: unknown[], locale: Locale, apiKey?: string): Promise<string> {
+  const provider = await detectAIProvider(apiKey)
+  if (provider.type === 'local') {
+    return await fetchLocalAISummary({ locale, title, description, data })
+  }
+  if (provider.type === 'openrouter' && apiKey) {
+    return await fetchOpenRouterSummary(title, description, data, apiKey, locale)
+  }
+  throw new Error('No AI provider configured. Run npm run ai:login and npm run ai:server, or enter an OpenRouter API key.')
+}
+
 export function AISummaryButton({ title, description, chartData }: {
   title: string; description?: string; chartData: unknown[]
 }) {
+  const { t, locale } = useI18n()
   const [open, setOpen] = useState(false)
   const [summary, setSummary] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
@@ -344,28 +362,37 @@ export function AISummaryButton({ title, description, chartData }: {
     return () => document.removeEventListener('mousedown', handler)
   }, [open, close])
 
-  const requestSummary = useCallback(async (key: string) => {
+  const requestSummary = useCallback(async (key?: string) => {
     setLoading(true)
     setError(null)
     try {
-      const result = await fetchAISummary(title, description, chartData, key)
+      const result = await fetchAISummary(title, description, chartData, locale, key)
       setSummary(result)
     } catch (e) {
       setError((e as Error).message)
     } finally {
       setLoading(false)
     }
-  }, [title, description, chartData])
+  }, [title, description, chartData, locale])
 
   const handleClick = useCallback(() => {
     if (open) { close(); return }
     setOpen(true)
     const key = getApiKey()
-    if (key) {
-      requestSummary(key)
-    } else {
+    setLoading(true)
+    setError(null)
+    void detectAIProvider(key ?? undefined).then(provider => {
+      if (provider.type === 'local' || key) {
+        setLoading(false)
+        requestSummary(key ?? undefined)
+      } else {
+        setLoading(false)
+        setAskingKey(true)
+      }
+    }).catch(() => {
+      setLoading(false)
       setAskingKey(true)
-    }
+    })
   }, [open, close, requestSummary])
 
   const handleKeySubmit = useCallback(() => {
@@ -381,7 +408,7 @@ export function AISummaryButton({ title, description, chartData }: {
       <button
         onClick={handleClick}
         className="p-1 rounded-md text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800 transition-colors"
-        title="AI Summary"
+        title={t('aiSummary')}
       >
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <path d="M12 3l1.912 5.813a2 2 0 0 0 1.275 1.275L21 12l-5.813 1.912a2 2 0 0 0-1.275 1.275L12 21l-1.912-5.813a2 2 0 0 0-1.275-1.275L3 12l5.813-1.912a2 2 0 0 0 1.275-1.275L12 3z" />
@@ -391,36 +418,36 @@ export function AISummaryButton({ title, description, chartData }: {
         <div ref={panelRef} className="absolute right-0 top-8 z-50 w-72 sm:w-80 bg-zinc-900 border border-zinc-700 rounded-xl shadow-2xl p-4">
           {askingKey ? (
             <div className="space-y-2">
-              <p className="text-xs text-zinc-400">Enter your Anthropic API key to enable AI summaries:</p>
+              <p className="text-xs text-zinc-400">{t('apiKeyPrompt')}</p>
               <input
                 type="password"
                 value={keyInput}
                 onChange={e => setKeyInput(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && handleKeySubmit()}
-                placeholder="sk-ant-..."
+                placeholder="sk-or-..."
                 className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-1.5 text-xs text-zinc-200 placeholder-zinc-600 focus:outline-none focus:border-zinc-500"
                 autoFocus
               />
               <div className="flex gap-2">
-                <button onClick={handleKeySubmit} className="px-3 py-1 bg-zinc-700 hover:bg-zinc-600 text-xs text-zinc-200 rounded-lg transition-colors">Save & Go</button>
-                <button onClick={close} className="px-3 py-1 text-xs text-zinc-500 hover:text-zinc-300 transition-colors">Cancel</button>
+                <button onClick={handleKeySubmit} className="px-3 py-1 bg-zinc-700 hover:bg-zinc-600 text-xs text-zinc-200 rounded-lg transition-colors">{t('saveAndGo')}</button>
+                <button onClick={close} className="px-3 py-1 text-xs text-zinc-500 hover:text-zinc-300 transition-colors">{t('cancel')}</button>
               </div>
-              <p className="text-[10px] text-zinc-600">Key is stored locally in your browser only.</p>
+              <p className="text-[10px] text-zinc-600">{t('keyStoredLocally')}</p>
             </div>
           ) : loading ? (
             <div className="flex items-center gap-2 text-xs text-zinc-400">
               <svg className="animate-spin h-3.5 w-3.5" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>
-              Analyzing...
+              {t('analyzing')}
             </div>
           ) : error ? (
             <div className="space-y-2">
               <p className="text-xs text-red-400">{error}</p>
-              <button onClick={() => { const k = getApiKey(); if (k) requestSummary(k); else setAskingKey(true); }} className="text-xs text-zinc-400 hover:text-zinc-200 transition-colors">Retry</button>
+              <button onClick={() => { const k = getApiKey(); requestSummary(k ?? undefined); }} className="text-xs text-zinc-400 hover:text-zinc-200 transition-colors">{t('retry')}</button>
             </div>
           ) : summary ? (
             <div className="space-y-2">
               <p className="text-xs text-zinc-300 leading-relaxed whitespace-pre-wrap">{summary}</p>
-              <button onClick={close} className="text-[10px] text-zinc-600 hover:text-zinc-400 transition-colors">Close</button>
+              <button onClick={close} className="text-[10px] text-zinc-600 hover:text-zinc-400 transition-colors">{t('close')}</button>
             </div>
           ) : null}
         </div>

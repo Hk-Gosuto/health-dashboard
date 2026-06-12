@@ -14,6 +14,7 @@ import { groupedAverage, workoutSummary, monthlyWorkouts } from './analysis'
 import { COLORS, chartMargin, StatBox, ChartCard, SectionHeader, SubsectionHeader, TabHeader, ChartTooltip, shortDateCompact, fmt, humanizeWorkoutType, useChartTheme, TabSkeleton, EmptyState } from './ui'
 import TopNav, { type NavGroup } from './components/TopNav'
 import { useHevy } from './useHevy'
+import { useI18n } from './i18n'
 
 const TrainingViewer = lazy(() => import('./TrainingViewer'))
 const SleepAnalysis = lazy(() => import('./SleepAnalysis'))
@@ -28,7 +29,7 @@ const YearInReview = lazy(() => import('./YearInReview'))
 const CalendarHeatmap = lazy(() => import('./CalendarHeatmap'))
 const HealthScoreView = lazy(() => import('./HealthScoreView'))
 const Trends = lazy(() => import('./Trends'))
-const AIInsights = lazy(() => import('./AIInsights'))
+const FloatingHealthAssistant = lazy(() => import('./AIInsights'))
 const MenstrualCycle = lazy(() => import('./MenstrualCycle'))
 const GarminTraining = lazy(() => import('./GarminTraining'))
 const Mobility = lazy(() => import('./Mobility'))
@@ -86,6 +87,7 @@ function useTheme() {
 }
 
 export default function Dashboard({ data, onReset }: { data: HealthData; onReset: () => void }) {
+  const { t } = useI18n()
   const initial = parseHash()
   const [range, setRange] = useState<TimeRange>(initial.range ?? 'all')
   const [granularity, setGranularity] = useState<Granularity>(initial.granularity ?? 'weekly')
@@ -211,28 +213,28 @@ export default function Dashboard({ data, onReset }: { data: HealthData; onReset
 
   const tabs: { key: Tab; label: string; icon: ReactNode; show: boolean; group: number }[] = [
     // 1 — Dashboard: current state
-    { key: 'overview', label: 'Overview', icon: <LayoutDashboard size={16} />, show: true, group: 1 },
-    { key: 'score', label: 'Score', icon: <Gauge size={16} />, show: true, group: 1 },
+    { key: 'overview', label: t('navOverview'), icon: <LayoutDashboard size={16} />, show: true, group: 1 },
+    { key: 'score', label: t('navScore'), icon: <Gauge size={16} />, show: true, group: 1 },
     // 2 — Health: physiological metrics
-    { key: 'cardio', label: 'Cardio', icon: <Heart size={16} />, show: hasCardio, group: 2 },
-    { key: 'body', label: 'Body', icon: <Scale size={16} />, show: hasBody, group: 2 },
-    { key: 'sleep', label: 'Sleep', icon: <Moon size={16} />, show: hasSleep, group: 2 },
-    { key: 'menstrual', label: 'Cycle', icon: <Droplets size={16} />, show: hasMenstrual || data.profile.sex === 'HKBiologicalSexFemale', group: 2 },
-    { key: 'daylight', label: 'Daylight', icon: <Sun size={16} />, show: hasDaylight, group: 2 },
-    { key: 'audio', label: 'Audio', icon: <Headphones size={16} />, show: hasAudio, group: 2 },
+    { key: 'cardio', label: t('tabCardio'), icon: <Heart size={16} />, show: hasCardio, group: 2 },
+    { key: 'body', label: t('tabBody'), icon: <Scale size={16} />, show: hasBody, group: 2 },
+    { key: 'sleep', label: t('tabSleep'), icon: <Moon size={16} />, show: hasSleep, group: 2 },
+    { key: 'menstrual', label: t('tabCycle'), icon: <Droplets size={16} />, show: hasMenstrual || data.profile.sex === 'HKBiologicalSexFemale', group: 2 },
+    { key: 'daylight', label: t('tabDaylight'), icon: <Sun size={16} />, show: hasDaylight, group: 2 },
+    { key: 'audio', label: t('tabAudio'), icon: <Headphones size={16} />, show: hasAudio, group: 2 },
     // 3 — Fitness: performance & training state
-    { key: 'mobility', label: 'Mobility', icon: <Footprints size={16} />, show: hasMobility, group: 3 },
-    { key: 'running', label: 'Running', icon: <Zap size={16} />, show: hasRunning, group: 3 },
-    { key: 'garmin-training', label: 'Training', icon: <Activity size={16} />, show: hasGarmin, group: 3 },
-    { key: 'load', label: 'Training Load', icon: <TrendingUp size={16} />, show: data.workouts.length >= 7, group: 3 },
+    { key: 'mobility', label: t('tabMobility'), icon: <Footprints size={16} />, show: hasMobility, group: 3 },
+    { key: 'running', label: t('tabRunning'), icon: <Zap size={16} />, show: hasRunning, group: 3 },
+    { key: 'garmin-training', label: t('tabTraining'), icon: <Activity size={16} />, show: hasGarmin, group: 3 },
+    { key: 'load', label: t('tabTrainingLoad'), icon: <TrendingUp size={16} />, show: data.workouts.length >= 7, group: 3 },
     // 4 — Activities: events & sessions
-    { key: 'calendar', label: 'Calendar', icon: <CalendarRange size={16} />, show: true, group: 4 },
-    { key: 'trainings', label: 'Trainings', icon: <Dumbbell size={16} />, show: data.workouts.length > 0, group: 4 },
-    { key: 'compare', label: 'Compare', icon: <Route size={16} />, show: hasGpx, group: 4 },
-    { key: 'heatmap', label: 'Heatmap', icon: <Map size={16} />, show: hasGpx, group: 4 },
+    { key: 'calendar', label: t('tabCalendar'), icon: <CalendarRange size={16} />, show: true, group: 4 },
+    { key: 'trainings', label: t('tabTrainings'), icon: <Dumbbell size={16} />, show: data.workouts.length > 0, group: 4 },
+    { key: 'compare', label: t('tabCompare'), icon: <Route size={16} />, show: hasGpx, group: 4 },
+    { key: 'heatmap', label: t('tabHeatmap'), icon: <Map size={16} />, show: hasGpx, group: 4 },
     // 5 — Trends & Analysis: deeper insight
-    { key: 'correlations', label: 'Correlations', icon: <GitCompareArrows size={16} />, show: true, group: 5 },
-    { key: 'yearly', label: 'Yearly', icon: <CalendarDays size={16} />, show: true, group: 5 },
+    { key: 'correlations', label: t('tabCorrelations'), icon: <GitCompareArrows size={16} />, show: true, group: 5 },
+    { key: 'yearly', label: t('tabYearly'), icon: <CalendarDays size={16} />, show: true, group: 5 },
   ]
 
   const tabByKey = (key: Tab) => tabs.find(t => t.key === key)
@@ -241,24 +243,25 @@ export default function Dashboard({ data, onReset }: { data: HealthData; onReset
     return { key: t.key, label: t.label, icon: t.icon, show: t.show }
   }
   const navGroups: NavGroup[] = [
-    { key: 'overview', label: 'Overview', tabs: [subItem('overview')] },
-    { key: 'score', label: 'Health Score', tabs: [subItem('score')] },
+    { key: 'overview', label: t('navOverview'), tabs: [subItem('overview')] },
+    { key: 'score', label: t('navHealthScore'), tabs: [subItem('score')] },
     {
       key: 'health',
-      label: 'Health',
+      label: t('navHealth'),
       tabs: [subItem('cardio'), subItem('body'), subItem('sleep'), subItem('menstrual'), subItem('daylight'), subItem('audio')],
     },
     {
       key: 'fitness',
-      label: 'Fitness Activities',
+      label: t('navFitness'),
       tabs: [subItem('mobility'), subItem('running'), subItem('garmin-training'), subItem('load'), subItem('calendar'), subItem('trainings'), subItem('compare'), subItem('heatmap')],
     },
-    { key: 'analysis', label: 'Analysis', tabs: [subItem('correlations'), subItem('yearly')] },
+    { key: 'analysis', label: t('navAnalysis'), tabs: [subItem('correlations'), subItem('yearly')] },
   ]
 
   const showControls = tab === 'overview' || tab === 'score' || tab === 'cardio' || tab === 'body' || tab === 'sleep' || tab === 'menstrual' || tab === 'daylight' || tab === 'audio' || tab === 'calendar' || tab === 'garmin-training' || tab === 'mobility' || tab === 'running' || tab === 'load'
 
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const currentTabLabel = tabByKey(tab)?.label ?? tab
 
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-100">
@@ -286,6 +289,7 @@ export default function Dashboard({ data, onReset }: { data: HealthData; onReset
           else if (r === '1y') setGranularity('weekly')
           else setGranularity('weekly')
         }}
+        t={t}
       />
 
       {/* Main content — top padding for fixed top bar */}
@@ -314,7 +318,7 @@ export default function Dashboard({ data, onReset }: { data: HealthData; onReset
             <Cardio cardioRecords={data.cardioRecords} dailyHR={data.dailyHR} metrics={allMetrics} dob={data.profile.dob} cutoffDate={cutoffDate} granularity={granularity} />
           </Suspense>
         ) : (
-          <EmptyState icon={<Heart size={28} />} title="No cardio data" hint="Your import doesn't contain heart-rate, VO2 max, or other cardio records. Re-export from Apple Health to include them." />
+          <EmptyState icon={<Heart size={28} />} title={t('noCardioTitle')} hint={t('noCardioHint')} />
         ))}
 
 
@@ -323,7 +327,7 @@ export default function Dashboard({ data, onReset }: { data: HealthData; onReset
             <BodyComposition bodyRecords={data.bodyRecords} cutoffDate={cutoffDate} granularity={granularity} />
           </Suspense>
         ) : (
-          <EmptyState icon={<Scale size={28} />} title="No body composition data" hint="No weight, body fat, or BMI entries were found in this import." />
+          <EmptyState icon={<Scale size={28} />} title={t('noBodyTitle')} hint={t('noBodyHint')} />
         ))}
 
         {tab === 'sleep' && (
@@ -343,7 +347,7 @@ export default function Dashboard({ data, onReset }: { data: HealthData; onReset
             <Daylight dailyDaylight={data.dailyDaylight} cutoffDate={cutoffDate} granularity={granularity} />
           </Suspense>
         ) : (
-          <EmptyState icon={<Sun size={28} />} title="No daylight data" hint="Time-in-daylight is recorded by Apple Watch Series 6 and later. No entries were found in this import." />
+          <EmptyState icon={<Sun size={28} />} title={t('noDaylightTitle')} hint={t('noDaylightHint')} />
         ))}
 
         {tab === 'audio' && (hasAudio ? (
@@ -351,7 +355,7 @@ export default function Dashboard({ data, onReset }: { data: HealthData; onReset
             <AudioExposure dailyAudio={data.dailyAudio} cutoffDate={cutoffDate} granularity={granularity} />
           </Suspense>
         ) : (
-          <EmptyState icon={<Headphones size={28} />} title="No audio exposure data" hint="Headphone and environmental audio levels weren't found in this import." />
+          <EmptyState icon={<Headphones size={28} />} title={t('noAudioTitle')} hint={t('noAudioHint')} />
         ))}
 
         {tab === 'mobility' && (hasMobility ? (
@@ -359,7 +363,7 @@ export default function Dashboard({ data, onReset }: { data: HealthData; onReset
             <Mobility dailyMobility={data.dailyMobility} cutoffDate={cutoffDate} granularity={granularity} />
           </Suspense>
         ) : (
-          <EmptyState icon={<Footprints size={28} />} title="No mobility data" hint="Walking speed, step length, and other gait metrics weren't found in this import." />
+          <EmptyState icon={<Footprints size={28} />} title={t('noMobilityTitle')} hint={t('noMobilityHint')} />
         ))}
 
         {tab === 'running' && (hasRunning ? (
@@ -367,7 +371,7 @@ export default function Dashboard({ data, onReset }: { data: HealthData; onReset
             <RunningDynamics runningDynamics={data.runningDynamics} cutoffDate={cutoffDate} granularity={granularity} />
           </Suspense>
         ) : (
-          <EmptyState icon={<Zap size={28} />} title="No running dynamics" hint="Running power, stride length, and similar metrics require a compatible Apple Watch. Nothing was found in this import." />
+          <EmptyState icon={<Zap size={28} />} title={t('noRunningTitle')} hint={t('noRunningHint')} />
         ))}
 
         {tab === 'load' && (data.workouts.length >= 7 ? (
@@ -375,7 +379,7 @@ export default function Dashboard({ data, onReset }: { data: HealthData; onReset
             <TrainingLoad workouts={data.workouts} cutoffDate={cutoffDate} />
           </Suspense>
         ) : (
-          <EmptyState icon={<TrendingUp size={28} />} title="Not enough workout data" hint="Training load needs at least 7 workouts to compute acute-to-chronic ratios. Log a few more and try again." />
+          <EmptyState icon={<TrendingUp size={28} />} title={t('notEnoughWorkoutsTitle')} hint={t('notEnoughWorkoutsHint')} />
         ))}
 
         {tab === 'correlations' && (
@@ -386,17 +390,17 @@ export default function Dashboard({ data, onReset }: { data: HealthData; onReset
 
         {tab === 'trainings' && (data.workouts.length > 0 ? (
           <div className="space-y-6">
-            <TabHeader title="Trainings" description="Workout type breakdown plus per-session detail with GPS routes, heart rate, pace, elevation, and — when matched against Hevy — full strength training detail (exercises, sets, reps, RPE)." />
+            <TabHeader title={t('trainingsTitle')} description={t('trainingsDesc')} />
             {topWorkouts.length > 0 && (
               <div className="space-y-3">
-                <SectionHeader>Types</SectionHeader>
+                <SectionHeader>{t('types')}</SectionHeader>
                 <div className="bg-zinc-900 rounded-xl border border-zinc-800 p-4">
-                  <h3 className="text-sm font-medium text-zinc-300 mb-3">Workout Types ({totalWorkouts} total)</h3>
+                  <h3 className="text-sm font-medium text-zinc-300 mb-3">{t('workoutTypes')} ({totalWorkouts} {t('total')})</h3>
                   <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-8 gap-3">
                     {topWorkouts.map(w => (
                       <div key={w.type} className="bg-zinc-800/50 rounded-lg p-3 min-w-0">
                         <div className="text-sm font-medium text-zinc-200 truncate" title={w.type}>{humanizeWorkoutType(w.type)}</div>
-                        <div className="text-lg font-semibold text-zinc-100 mt-1">{w.count}<span className="text-xs text-zinc-500 ml-1">sessions</span></div>
+                        <div className="text-lg font-semibold text-zinc-100 mt-1">{w.count}<span className="text-xs text-zinc-500 ml-1">{t('sessions')}</span></div>
                         <div className="text-xs text-zinc-500 mt-0.5 truncate">{Math.round(w.totalMinutes / 60)}h · {fmt(w.totalCalories)} kcal</div>
                       </div>
                     ))}
@@ -405,14 +409,14 @@ export default function Dashboard({ data, onReset }: { data: HealthData; onReset
               </div>
             )}
             <div className="space-y-3">
-              <SectionHeader>Detail</SectionHeader>
+              <SectionHeader>{t('detail')}</SectionHeader>
               <Suspense fallback={Loading}>
                 <TrainingViewer data={data} hevy={hevyData} />
               </Suspense>
             </div>
           </div>
         ) : (
-          <EmptyState icon={<Dumbbell size={28} />} title="No workouts found" hint="No workout records were detected in this import." />
+          <EmptyState icon={<Dumbbell size={28} />} title={t('noWorkoutsTitle')} hint={t('noWorkoutsHint')} />
         ))}
 
         {tab === 'compare' && (hasGpx ? (
@@ -420,7 +424,7 @@ export default function Dashboard({ data, onReset }: { data: HealthData; onReset
             <RouteComparison gpxFiles={data.gpxFiles} />
           </Suspense>
         ) : (
-          <EmptyState icon={<Route size={28} />} title="No routes to compare" hint="Comparison needs at least two GPX routes from your Apple Health export." />
+          <EmptyState icon={<Route size={28} />} title={t('noCompareTitle')} hint={t('noCompareHint')} />
         ))}
 
         {tab === 'heatmap' && (hasGpx ? (
@@ -428,7 +432,7 @@ export default function Dashboard({ data, onReset }: { data: HealthData; onReset
             <RouteHeatmap gpxFiles={data.gpxFiles} />
           </Suspense>
         ) : (
-          <EmptyState icon={<Map size={28} />} title="No routes for a heatmap" hint="The heatmap aggregates your GPX routes, none of which were found in this import." />
+          <EmptyState icon={<Map size={28} />} title={t('noHeatmapTitle')} hint={t('noHeatmapHint')} />
         ))}
 
         {tab === 'garmin-training' && (hasGarmin && data.garminMetrics ? (
@@ -436,29 +440,29 @@ export default function Dashboard({ data, onReset }: { data: HealthData; onReset
             <GarminTraining garminMetrics={data.garminMetrics} granularity={granularity} dateRange={[cutoffDate || '2000-01-01', '2099-12-31']} />
           </Suspense>
         ) : (
-          <EmptyState icon={<Activity size={28} />} title="No Garmin training data" hint="Switch the source to Garmin on the upload screen and select your Garmin export folder to see training metrics." />
+          <EmptyState icon={<Activity size={28} />} title={t('noGarminTrainingTitle')} hint={t('noGarminTrainingHint')} />
         ))}
 
         {tab === 'overview' && <>
         {/* Key Metrics */}
-        <TabHeader title="Overview" description="Your health at a glance — key metrics and trend movement across multiple windows." />
-        <SubsectionHeader title="At a Glance" description="30-day averages and latest readings across your key health metrics." />
+        <TabHeader title={t('overviewTitle')} description={t('overviewDesc')} />
+        <SubsectionHeader title={t('atAGlance')} description={t('atAGlanceDesc')} />
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-8 gap-3">
-          <StatBox label="Steps" icon={<Footprints size={14} />} value={fmt(avgSteps)} unit="/day" sub="30d avg" latest={latestSteps !== null ? fmt(latestSteps, 0) : undefined} color={COLORS.blue} sparkData={sparkFor('steps')} />
-          <StatBox label="Sleep" icon={<Moon size={14} />} value={fmt(avgSleep, 1)} unit="hrs" sub="30d avg" latest={latestSleep !== null ? `${fmt(latestSleep, 1)}h` : undefined} color={COLORS.cyan} sparkData={sparkFor('sleepHours')} />
-          <StatBox label="Resting HR" icon={<Heart size={14} />} value={fmt(avgHR, 0)} unit="bpm" sub="30d avg" latest={latestHR !== null ? `${fmt(latestHR, 0)}` : undefined} color={COLORS.red} sparkData={sparkFor('restingHeartRate')} />
-          <StatBox label="HRV" icon={<Waves size={14} />} value={fmt(avgHRV, 0)} unit="ms" sub="30d avg" latest={latestHRV !== null ? `${fmt(latestHRV, 0)}` : undefined} color={COLORS.purple} sparkData={sparkFor('hrv')} />
-          <StatBox label="Weight" icon={<Scale size={14} />} value={fmt(latestWeight, 1)} unit="kg" sub="Latest" color={COLORS.orange} sparkData={sparkFor('weight')} />
-          <StatBox label="VO2 Max" icon={<Wind size={14} />} value={fmt(latestVO2, 1)} unit="mL/kg/min" sub="Latest" color={COLORS.green} sparkData={sparkFor('vo2max')} />
-          <StatBox label="Distance" icon={<MapPin size={14} />} value={fmt(avgMetric(recent30, 'distance'), 1)} unit="km/day" sub="30d avg" latest={latestDistance !== null ? `${fmt(latestDistance, 1)}` : undefined} color={COLORS.green} sparkData={sparkFor('distance')} />
-          <StatBox label="Workouts" icon={<Dumbbell size={14} />} value={`${totalWorkouts}`} unit="total" color={COLORS.zinc} sub={`${workoutsByMonth.length > 0 ? workoutsByMonth[workoutsByMonth.length - 1]?.count || 0 : 0} this month`} />
+          <StatBox label={t('steps')} icon={<Footprints size={14} />} value={fmt(avgSteps)} unit={t('perDay')} sub={t('thirtyDayAvg')} latest={latestSteps !== null ? fmt(latestSteps, 0) : undefined} color={COLORS.blue} sparkData={sparkFor('steps')} />
+          <StatBox label={t('sleep')} icon={<Moon size={14} />} value={fmt(avgSleep, 1)} unit={t('hoursShort')} sub={t('thirtyDayAvg')} latest={latestSleep !== null ? `${fmt(latestSleep, 1)}h` : undefined} color={COLORS.cyan} sparkData={sparkFor('sleepHours')} />
+          <StatBox label={t('restingHr')} icon={<Heart size={14} />} value={fmt(avgHR, 0)} unit="bpm" sub={t('thirtyDayAvg')} latest={latestHR !== null ? `${fmt(latestHR, 0)}` : undefined} color={COLORS.red} sparkData={sparkFor('restingHeartRate')} />
+          <StatBox label={t('hrv')} icon={<Waves size={14} />} value={fmt(avgHRV, 0)} unit="ms" sub={t('thirtyDayAvg')} latest={latestHRV !== null ? `${fmt(latestHRV, 0)}` : undefined} color={COLORS.purple} sparkData={sparkFor('hrv')} />
+          <StatBox label={t('weight')} icon={<Scale size={14} />} value={fmt(latestWeight, 1)} unit="kg" sub={t('latest')} color={COLORS.orange} sparkData={sparkFor('weight')} />
+          <StatBox label={t('vo2Max')} icon={<Wind size={14} />} value={fmt(latestVO2, 1)} unit="mL/kg/min" sub={t('latest')} color={COLORS.green} sparkData={sparkFor('vo2max')} />
+          <StatBox label={t('distance')} icon={<MapPin size={14} />} value={fmt(avgMetric(recent30, 'distance'), 1)} unit="km/day" sub={t('thirtyDayAvg')} latest={latestDistance !== null ? `${fmt(latestDistance, 1)}` : undefined} color={COLORS.green} sparkData={sparkFor('distance')} />
+          <StatBox label={t('workouts')} icon={<Dumbbell size={14} />} value={`${totalWorkouts}`} unit={t('total')} color={COLORS.zinc} sub={`${workoutsByMonth.length > 0 ? workoutsByMonth[workoutsByMonth.length - 1]?.count || 0 : 0} ${t('thisMonth')}`} />
         </div>
 
         {/* Key charts */}
-        <SubsectionHeader title="Charts" description="Trends over time for the metrics that matter most." />
+        <SubsectionHeader title={t('charts')} description={t('chartsDesc')} />
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
             {stepsData.length > 0 && (
-              <ChartCard title="Steps" chartData={stepsData} icon={<Footprints size={14} />} color={COLORS.blue}>
+              <ChartCard title={t('steps')} chartData={stepsData} icon={<Footprints size={14} />} color={COLORS.blue}>
                 <AreaChart margin={chartMargin} data={stepsData}>
                   <defs>
                     <linearGradient id="stepsGrad" x1="0" y1="0" x2="0" y2="1">
@@ -470,14 +474,14 @@ export default function Dashboard({ data, onReset }: { data: HealthData; onReset
                   <XAxis dataKey="week" tick={{ fontSize: 10, fill: ct.tick }} tickFormatter={shortDateCompact} interval="preserveStartEnd" minTickGap={40} />
                   <YAxis tick={{ fontSize: 10, fill: ct.tick }} />
                   <Tooltip content={<ChartTooltip />} />
-                  <ReferenceLine y={avgOf(stepsData)} stroke={COLORS.blue} strokeDasharray="4 4" strokeOpacity={0.5} label={{ value: 'avg', position: 'right', fill: ct.tick, fontSize: 9 }} />
+                  <ReferenceLine y={avgOf(stepsData)} stroke={COLORS.blue} strokeDasharray="4 4" strokeOpacity={0.5} label={{ value: t('avg'), position: 'right', fill: ct.tick, fontSize: 9 }} />
                   <Area type="monotone" dataKey="value" stroke={COLORS.blue} fill="url(#stepsGrad)" strokeWidth={1.5} dot={false} />
                 </AreaChart>
               </ChartCard>
             )}
 
             {sleepData.length > 0 && (
-              <ChartCard title="Sleep" chartData={sleepData} icon={<Moon size={14} />} color={COLORS.cyan}>
+              <ChartCard title={t('sleep')} chartData={sleepData} icon={<Moon size={14} />} color={COLORS.cyan}>
                 <AreaChart margin={chartMargin} data={sleepData}>
                   <defs>
                     <linearGradient id="sleepGrad" x1="0" y1="0" x2="0" y2="1">
@@ -489,14 +493,14 @@ export default function Dashboard({ data, onReset }: { data: HealthData; onReset
                   <XAxis dataKey="week" tick={{ fontSize: 10, fill: ct.tick }} tickFormatter={shortDateCompact} interval="preserveStartEnd" minTickGap={40} />
                   <YAxis domain={['auto', 'auto']} tick={{ fontSize: 10, fill: ct.tick }} />
                   <Tooltip content={<ChartTooltip />} />
-                  <ReferenceLine y={avgOf(sleepData)} stroke={COLORS.cyan} strokeDasharray="4 4" strokeOpacity={0.5} label={{ value: 'avg', position: 'right', fill: ct.tick, fontSize: 9 }} />
+                  <ReferenceLine y={avgOf(sleepData)} stroke={COLORS.cyan} strokeDasharray="4 4" strokeOpacity={0.5} label={{ value: t('avg'), position: 'right', fill: ct.tick, fontSize: 9 }} />
                   <Area type="monotone" dataKey="value" stroke={COLORS.cyan} fill="url(#sleepGrad)" strokeWidth={1.5} dot={false} />
                 </AreaChart>
               </ChartCard>
             )}
 
             {hrData.length > 0 && (
-              <ChartCard title="Resting Heart Rate" chartData={hrData} icon={<Heart size={14} />} color={COLORS.red}>
+              <ChartCard title={t('restingHeartRate')} chartData={hrData} icon={<Heart size={14} />} color={COLORS.red}>
                 <AreaChart margin={chartMargin} data={hrData}>
                   <defs>
                     <linearGradient id="hrGrad" x1="0" y1="0" x2="0" y2="1">
@@ -508,14 +512,14 @@ export default function Dashboard({ data, onReset }: { data: HealthData; onReset
                   <XAxis dataKey="week" tick={{ fontSize: 10, fill: ct.tick }} tickFormatter={shortDateCompact} interval="preserveStartEnd" minTickGap={40} />
                   <YAxis domain={['auto', 'auto']} tick={{ fontSize: 10, fill: ct.tick }} />
                   <Tooltip content={<ChartTooltip />} />
-                  <ReferenceLine y={avgOf(hrData)} stroke={COLORS.red} strokeDasharray="4 4" strokeOpacity={0.5} label={{ value: 'avg', position: 'right', fill: ct.tick, fontSize: 9 }} />
+                  <ReferenceLine y={avgOf(hrData)} stroke={COLORS.red} strokeDasharray="4 4" strokeOpacity={0.5} label={{ value: t('avg'), position: 'right', fill: ct.tick, fontSize: 9 }} />
                   <Area type="monotone" dataKey="value" stroke={COLORS.red} fill="url(#hrGrad)" strokeWidth={1.5} dot={false} />
                 </AreaChart>
               </ChartCard>
             )}
 
             {hrvData.length > 0 && (
-              <ChartCard title="Heart Rate Variability" chartData={hrvData} icon={<Waves size={14} />} color={COLORS.purple}>
+              <ChartCard title={t('heartRateVariability')} chartData={hrvData} icon={<Waves size={14} />} color={COLORS.purple}>
                 <AreaChart margin={chartMargin} data={hrvData}>
                   <defs>
                     <linearGradient id="hrvGrad2" x1="0" y1="0" x2="0" y2="1">
@@ -527,7 +531,7 @@ export default function Dashboard({ data, onReset }: { data: HealthData; onReset
                   <XAxis dataKey="week" tick={{ fontSize: 10, fill: ct.tick }} tickFormatter={shortDateCompact} interval="preserveStartEnd" minTickGap={40} />
                   <YAxis domain={['auto', 'auto']} tick={{ fontSize: 10, fill: ct.tick }} />
                   <Tooltip content={<ChartTooltip />} />
-                  <ReferenceLine y={avgOf(hrvData)} stroke={COLORS.purple} strokeDasharray="4 4" strokeOpacity={0.5} label={{ value: 'avg', position: 'right', fill: ct.tick, fontSize: 9 }} />
+                  <ReferenceLine y={avgOf(hrvData)} stroke={COLORS.purple} strokeDasharray="4 4" strokeOpacity={0.5} label={{ value: t('avg'), position: 'right', fill: ct.tick, fontSize: 9 }} />
                   <Area type="monotone" dataKey="value" stroke={COLORS.purple} fill="url(#hrvGrad2)" strokeWidth={1.5} dot={false} />
                 </AreaChart>
               </ChartCard>
@@ -537,7 +541,7 @@ export default function Dashboard({ data, onReset }: { data: HealthData; onReset
         {/* Secondary charts */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
           {distanceData.length > 0 && (
-            <ChartCard title="Distance (km)" chartData={distanceData} icon={<MapPin size={14} />} color={COLORS.green}>
+            <ChartCard title={t('distanceKm')} chartData={distanceData} icon={<MapPin size={14} />} color={COLORS.green}>
               <AreaChart margin={chartMargin} data={distanceData}>
                 <defs>
                   <linearGradient id="distGrad" x1="0" y1="0" x2="0" y2="1">
@@ -549,14 +553,14 @@ export default function Dashboard({ data, onReset }: { data: HealthData; onReset
                 <XAxis dataKey="week" tick={{ fontSize: 10, fill: ct.tick }} tickFormatter={shortDateCompact} interval="preserveStartEnd" minTickGap={40} />
                 <YAxis tick={{ fontSize: 10, fill: ct.tick }} />
                 <Tooltip content={<ChartTooltip />} />
-                <ReferenceLine y={avgOf(distanceData)} stroke={COLORS.green} strokeDasharray="4 4" strokeOpacity={0.5} label={{ value: 'avg', position: 'right', fill: ct.tick, fontSize: 9 }} />
+                <ReferenceLine y={avgOf(distanceData)} stroke={COLORS.green} strokeDasharray="4 4" strokeOpacity={0.5} label={{ value: t('avg'), position: 'right', fill: ct.tick, fontSize: 9 }} />
                 <Area type="monotone" dataKey="value" stroke={COLORS.green} fill="url(#distGrad)" strokeWidth={1.5} dot={false} />
               </AreaChart>
             </ChartCard>
           )}
 
           {weightData.length > 0 && (
-            <ChartCard title="Weight (kg)" chartData={weightData} icon={<Scale size={14} />} color={COLORS.orange}>
+            <ChartCard title={t('weightKg')} chartData={weightData} icon={<Scale size={14} />} color={COLORS.orange}>
               <AreaChart margin={chartMargin} data={weightData}>
                 <defs>
                   <linearGradient id="weightGrad" x1="0" y1="0" x2="0" y2="1">
@@ -568,14 +572,14 @@ export default function Dashboard({ data, onReset }: { data: HealthData; onReset
                 <XAxis dataKey="week" tick={{ fontSize: 10, fill: ct.tick }} tickFormatter={shortDateCompact} interval="preserveStartEnd" minTickGap={40} />
                 <YAxis domain={['auto', 'auto']} tick={{ fontSize: 10, fill: ct.tick }} />
                 <Tooltip content={<ChartTooltip />} />
-                <ReferenceLine y={avgOf(weightData)} stroke={COLORS.orange} strokeDasharray="4 4" strokeOpacity={0.5} label={{ value: 'avg', position: 'right', fill: ct.tick, fontSize: 9 }} />
+                <ReferenceLine y={avgOf(weightData)} stroke={COLORS.orange} strokeDasharray="4 4" strokeOpacity={0.5} label={{ value: t('avg'), position: 'right', fill: ct.tick, fontSize: 9 }} />
                 <Area type="monotone" dataKey="value" stroke={COLORS.orange} fill="url(#weightGrad)" strokeWidth={1.5} dot={false} />
               </AreaChart>
             </ChartCard>
           )}
 
           {vo2Data.length > 0 && (
-            <ChartCard title="VO2 Max" chartData={vo2Data} icon={<Wind size={14} />} color={COLORS.green}>
+            <ChartCard title={t('vo2Max')} chartData={vo2Data} icon={<Wind size={14} />} color={COLORS.green}>
               <AreaChart margin={chartMargin} data={vo2Data}>
                 <defs>
                   <linearGradient id="vo2Grad" x1="0" y1="0" x2="0" y2="1">
@@ -587,27 +591,37 @@ export default function Dashboard({ data, onReset }: { data: HealthData; onReset
                 <XAxis dataKey="week" tick={{ fontSize: 10, fill: ct.tick }} tickFormatter={shortDateCompact} interval="preserveStartEnd" minTickGap={40} />
                 <YAxis domain={['auto', 'auto']} tick={{ fontSize: 10, fill: ct.tick }} />
                 <Tooltip content={<ChartTooltip />} />
-                <ReferenceLine y={avgOf(vo2Data)} stroke={COLORS.green} strokeDasharray="4 4" strokeOpacity={0.5} label={{ value: 'avg', position: 'right', fill: ct.tick, fontSize: 9 }} />
+                <ReferenceLine y={avgOf(vo2Data)} stroke={COLORS.green} strokeDasharray="4 4" strokeOpacity={0.5} label={{ value: t('avg'), position: 'right', fill: ct.tick, fontSize: 9 }} />
                 <Area type="monotone" dataKey="value" stroke={COLORS.green} fill="url(#vo2Grad)" strokeWidth={1.5} dot={false} />
               </AreaChart>
             </ChartCard>
           )}
         </div>
 
-        {/* Trends + AI Insights inlined into Overview */}
+        {/* Trends */}
         <Suspense fallback={Loading}>
           <Trends data={data} metrics={allMetrics} />
-        </Suspense>
-        <Suspense fallback={Loading}>
-          <AIInsights data={data} metrics={allMetrics} />
         </Suspense>
         </>}
 
         <footer className="text-center text-zinc-600 text-xs py-8">
-          All data processed locally in your browser. Nothing is sent to any server.
+          {t('footerLocalOnly')}
         </footer>
       </main>
       </div>
+      <Suspense fallback={null}>
+        <FloatingHealthAssistant
+          data={data}
+          metrics={allMetrics}
+          currentView={{
+            tab,
+            label: currentTabLabel,
+            range,
+            granularity,
+            cutoffDate: cutoffDate || undefined,
+          }}
+        />
+      </Suspense>
     </div>
   )
 }
@@ -632,6 +646,7 @@ function SettingsModal({
   onGranularityChange,
   range,
   onRangeChange,
+  t,
 }: {
   open: boolean
   onClose: () => void
@@ -639,6 +654,7 @@ function SettingsModal({
   onGranularityChange: (g: Granularity) => void
   range: TimeRange
   onRangeChange: (r: TimeRange) => void
+  t: ReturnType<typeof useI18n>['t']
 }) {
   useEffect(() => {
     if (!open) return
@@ -655,12 +671,12 @@ function SettingsModal({
       <div className="relative w-full max-w-md rounded-xl border border-zinc-800 bg-zinc-900 shadow-xl shadow-black/30 p-5 space-y-5">
         <div className="flex items-start justify-between gap-3">
           <div>
-            <h2 className="text-[15px] font-semibold text-zinc-100">Settings</h2>
-            <p className="text-xs text-zinc-500 mt-0.5">Adjust how charts and stats are aggregated.</p>
+            <h2 className="text-[15px] font-semibold text-zinc-100">{t('settings')}</h2>
+            <p className="text-xs text-zinc-500 mt-0.5">{t('settingsHint')}</p>
           </div>
           <button
             onClick={onClose}
-            aria-label="Close settings"
+            aria-label={t('closeSettings')}
             className="w-8 h-8 flex items-center justify-center rounded-lg text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800/60 transition-colors"
           >
             ×
@@ -668,7 +684,7 @@ function SettingsModal({
         </div>
 
         <div>
-          <div className="text-[10px] font-medium tracking-wider uppercase text-zinc-500 mb-2">Granularity</div>
+          <div className="text-[10px] font-medium tracking-wider uppercase text-zinc-500 mb-2">{t('granularity')}</div>
           <div className="flex bg-zinc-950 rounded-lg p-0.5 border border-zinc-800">
             {(['daily', 'weekly', 'monthly'] as Granularity[]).map(g => (
               <button
@@ -678,14 +694,14 @@ function SettingsModal({
                   granularity === g ? 'bg-[#0099FF]/15 text-[#0099FF] ring-1 ring-[#0099FF]/25' : 'text-zinc-400 hover:text-zinc-200'
                 }`}
               >
-                {g}
+                {g === 'daily' ? t('daily') : g === 'weekly' ? t('weekly') : t('monthly')}
               </button>
             ))}
           </div>
         </div>
 
         <div>
-          <div className="text-[10px] font-medium tracking-wider uppercase text-zinc-500 mb-2">Time range</div>
+          <div className="text-[10px] font-medium tracking-wider uppercase text-zinc-500 mb-2">{t('timeRange')}</div>
           <div className="flex bg-zinc-950 rounded-lg p-0.5 border border-zinc-800">
             {(['1w', '3m', '6m', '1y', 'all'] as TimeRange[]).map(r => (
               <button

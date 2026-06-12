@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useRef } from 'react'
 import { MapContainer, TileLayer, Polyline, useMap } from 'react-leaflet'
 import 'leaflet/dist/leaflet.css'
 import { StatBox, TabHeader } from './ui'
+import { useI18n } from './i18n'
 
 interface ParsedRoute {
   filename: string
@@ -72,6 +73,7 @@ function FitAllBounds({ routes }: { routes: ParsedRoute[] }) {
 }
 
 export default function RouteHeatmap({ gpxFiles }: { gpxFiles: Map<string, File> }) {
+  const { tText } = useI18n()
   const [routes, setRoutes] = useState<ParsedRoute[]>([])
   const [loading, setLoading] = useState(true)
   const [hoveredIdx, setHoveredIdx] = useState<number | null>(null)
@@ -144,23 +146,23 @@ export default function RouteHeatmap({ gpxFiles }: { gpxFiles: Map<string, File>
   }, [routes])
 
   if (loading) {
-    return <div className="text-zinc-400 animate-pulse text-center py-20">Loading routes...</div>
+    return <div className="text-zinc-400 animate-pulse text-center py-20">{tText('Loading routes...')}</div>
   }
 
   if (routes.length === 0) {
-    return <div className="text-zinc-500 text-center py-20">No GPX route files found.</div>
+    return <div className="text-zinc-500 text-center py-20">{tText('No GPX route files found.')}</div>
   }
 
   return (
     <div className="space-y-4">
-      <TabHeader title="Route Heatmap" description="All your GPS activity overlaid on a map to see your most-traveled routes." />
+      <TabHeader title={tText('Route Heatmap')} description={tText('All your GPS activity overlaid on a map to see your most-traveled routes.')} />
       {/* Stats */}
       {stats && (
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <StatBox label="Total Routes" value={`${stats.totalRoutes}`} />
-          <StatBox label="Total Distance" value={`${stats.totalDist.toFixed(0)} km`} />
-          <StatBox label="Avg per Route" value={`${stats.avgPerRoute.toFixed(1)} km`} />
-          <StatBox label="Years of Data" value={`${stats.years}`} />
+          <StatBox label={tText('Total Routes')} value={`${stats.totalRoutes}`} />
+          <StatBox label={tText('Total Distance')} value={`${stats.totalDist.toFixed(0)} km`} />
+          <StatBox label={tText('Avg per Route')} value={`${stats.avgPerRoute.toFixed(1)} km`} />
+          <StatBox label={tText('Years of Data')} value={`${stats.years}`} />
         </div>
       )}
 
@@ -204,7 +206,7 @@ export default function RouteHeatmap({ gpxFiles }: { gpxFiles: Map<string, File>
       )}
 
       <p className="text-zinc-600 text-xs text-center">
-        Brighter routes = more frequently visited areas. Hover a route to highlight it.
+        {tText('Brighter routes = more frequently visited areas. Hover a route to highlight it.')}
       </p>
     </div>
   )
